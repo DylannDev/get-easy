@@ -1,0 +1,26 @@
+---
+alwaysApply: true
+---
+
+## But du projet
+
+Créer une application de location de voiture mobile-first avec un excellent UX.
+
+La page d’accueil est le point de départ, pensée comme une landing SPA, avec composants réutilisables pour scaler vers un SaaS.
+
+## Stack
+
+- Next.js (App Router, React 19)
+- TypeScript
+- TailwindCSS v4
+- ShadCN/UI (seulement si nécessaire)
+- Pas de bibliothèques inutiles
+
+## Composants
+
+Tous les composants seront créés en kebab-case (par exemple : hero-image.tsx). Pas de camelCase pour les composants.
+Dès qu'un composant est créé tu dois le placer dans le dossier /src/components
+
+## Commentaires
+
+Les commentaires doivent être ajoutés en français

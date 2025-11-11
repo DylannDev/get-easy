@@ -1,0 +1,82 @@
+import type { Organization } from "@/types";
+
+export const organizations: Organization[] = [
+  {
+    id: "get-easy",
+    name: "Get Easy",
+    agencies: [
+      {
+        id: "remire-montjoly",
+        name: "Get Easy",
+        city: "Remire Montjoly",
+        address: "Guyane Française",
+        hours: {
+          openTime: "08:00",
+          closeTime: "19:00",
+          interval: 30,
+        },
+        vehicles: [
+          {
+            id: "1",
+            brand: "Renault",
+            model: "Clio",
+            pricePerDay: 42,
+            numberOfSeats: 5,
+            numberOfDoors: 5,
+            trunkSize: "3 bagages",
+            transmission: "manuelle",
+            fuelType: "essence",
+            color: "gray",
+            quantity: 2,
+            year: 2025,
+            registrationPlate: "FZ-123-AB",
+            img: "/vehicles/clio-grise.png",
+            blockedPeriods: [
+              { start: "2025-02-20T08:00", end: "2025-02-05T19:00" },
+              { start: "2025-02-12T08:00", end: "2025-02-15T19:00" },
+            ],
+          },
+          {
+            id: "2",
+            brand: "Renault",
+            model: "Clio",
+            pricePerDay: 42,
+            numberOfSeats: 5,
+            numberOfDoors: 5,
+            trunkSize: "3 bagages",
+            transmission: "manuelle",
+            fuelType: "essence",
+            color: "gray",
+            quantity: 2,
+            year: 2025,
+            registrationPlate: "FZ-123-AC",
+            img: "/vehicles/clio-grise.png",
+            blockedPeriods: [
+              { start: "2025-02-01T08:00", end: "2025-02-05T19:00" },
+              { start: "2025-02-12T08:00", end: "2025-02-15T19:00" },
+            ],
+          },
+          {
+            id: "3",
+            brand: "Renault",
+            model: "Clio",
+            pricePerDay: 42,
+            numberOfSeats: 5,
+            numberOfDoors: 5,
+            trunkSize: "3 bagages",
+            transmission: "automatique",
+            fuelType: "hybride",
+            color: "red",
+            quantity: 1,
+            year: 2025,
+            registrationPlate: "FZ-123-AD",
+            img: "/vehicles/clio-rouge.jpg",
+            blockedPeriods: [
+              { start: "2025-11-20T08:00", end: "2025-11-28T19:00" },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+];

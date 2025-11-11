@@ -1,0 +1,19 @@
+---
+alwaysApply: true
+---
+
+## UI Guidelines
+
+- Mobile-first
+- Layout fluide et minimaliste
+- Typo simple, grandes zones de clic
+- Utiliser Tailwind pour tous les styles
+- Utiliser shadcn pour les composants complexes (datepicker, modal, etc.)
+
+## Composants UI globaux
+
+- Navbar
+- HeroImage
+- SearchForm
+- VehicleCard
+- Footer
