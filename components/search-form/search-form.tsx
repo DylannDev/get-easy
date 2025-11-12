@@ -24,7 +24,7 @@ export const SearchForm = () => {
   const [agencyId, setAgencyId] = useState(defaultAgencyId);
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [startTime, setStartTime] = useState("08:00");
-  const [endTime, setEndTime] = useState("19:00");
+  const [endTime, setEndTime] = useState("08:00");
   const [submitted, setSubmitted] = useState(false);
   const [openStartCalendar, setOpenStartCalendar] = useState(false);
   const [openEndCalendar, setOpenEndCalendar] = useState(false);
