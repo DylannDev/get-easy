@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { findVehicleById, validateDates } from "@/lib/utils";
-import { VehicleInfo } from "@/components/booking/vehicle-info";
-import { BookingSummary } from "@/components/booking/booking-summary";
+import { BookingPageClient } from "@/components/booking/booking-page-client";
 import Link from "next/link";
 
 interface BookingPageProps {
@@ -71,21 +70,11 @@ export default async function BookingPage({
         </Link>
 
         {/* Two Column Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column - Vehicle Info */}
-          <div className="lg:col-span-2">
-            <VehicleInfo vehicle={vehicle} />
-          </div>
-
-          {/* Right Column - Booking Summary */}
-          <div className="lg:col-span-1">
-            <BookingSummary
-              vehicle={vehicle}
-              startDate={startDate}
-              endDate={endDate}
-            />
-          </div>
-        </div>
+        <BookingPageClient
+          vehicle={vehicle}
+          startDate={startDate}
+          endDate={endDate}
+        />
       </div>
     </main>
   );
