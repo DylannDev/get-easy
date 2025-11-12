@@ -13,12 +13,14 @@ interface BookingSummaryProps {
   vehicle: Vehicle;
   startDate: Date;
   endDate: Date;
+  onProceedToForm?: () => void;
 }
 
 export const BookingSummary = ({
   vehicle,
   startDate,
   endDate,
+  onProceedToForm,
 }: BookingSummaryProps) => {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -292,7 +294,13 @@ export const BookingSummary = ({
       </div>
 
       {/* CTA Button */}
-      <Button className="w-full">Finaliser la réservation</Button>
+      <Button
+        className="w-full"
+        onClick={onProceedToForm}
+        type="button"
+      >
+        Finaliser la réservation
+      </Button>
     </div>
   );
 };
