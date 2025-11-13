@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
-import { Inter_Tight, Unbounded } from "next/font/google";
+import { DM_Sans, Unbounded } from "next/font/google";
 import "./globals.css";
 import { Footer } from "@/components/footer";
 import { Navbar } from "@/components/navbar";
 import { Toaster } from "@/components/ui/sonner";
 
-const interTight = Inter_Tight({
-  variable: "--font-inter-tight",
+const dmsans = DM_Sans({
+  variable: "--font-dmsans",
   subsets: ["latin"],
 });
 
@@ -27,9 +27,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`${interTight.variable} ${unbounded.variable} antialiased`}
-      >
+      <body className={`${dmsans.variable} ${unbounded.variable} antialiased`}>
         <Navbar />
         {children}
         <Toaster />

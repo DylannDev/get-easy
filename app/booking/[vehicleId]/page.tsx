@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { findVehicleById, validateDates } from "@/lib/utils";
 import { BookingPageClient } from "@/components/booking/booking-page-client";
-import Link from "next/link";
 
 interface BookingPageProps {
   params: Promise<{ vehicleId: string }>;
@@ -46,30 +45,9 @@ export default async function BookingPage({
   }
 
   return (
-    <main className="min-h-screen py-8 bg-gray-50">
+    <main className="min-h-screen py-6 bg-gray-50">
       <div className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-        {/* Back Button */}
-        <Link
-          href="/"
-          className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-black mb-6"
-        >
-          <svg
-            className="size-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M15 19l-7-7 7-7"
-            />
-          </svg>
-          Retour aux véhicules
-        </Link>
-
-        {/* Two Column Layout */}
+        {/* Booking Content with Timeline */}
         <BookingPageClient
           vehicle={vehicle}
           startDate={startDate}

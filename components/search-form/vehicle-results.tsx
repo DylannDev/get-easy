@@ -57,7 +57,7 @@ export const VehicleResults = ({
     <>
       <h1 className="text-3xl font-bold mb-6">Sélectionnez votre véhicule</h1>
       {isLoading ? (
-        <LoadingSpinner />
+        <LoadingSpinner className="py-20" />
       ) : (
         <VehicleGrid
           vehicles={groupedVehicles}
@@ -134,7 +134,11 @@ const VehicleGrid = ({
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {vehicles.map((v) => (
         <Link key={v.id} href={getBookingUrl(v.id)} onClick={handleClick}>
-          <VehicleCard vehicle={v} startDate={startDateTime} endDate={endDateTime} />
+          <VehicleCard
+            vehicle={v}
+            startDate={startDateTime}
+            endDate={endDateTime}
+          />
         </Link>
       ))}
     </div>

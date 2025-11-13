@@ -1,8 +1,9 @@
 import Image from "next/image";
+import Link from "next/link";
 
 export const Logo = () => {
   return (
-    <div className="flex items-center">
+    <Link href="/" className="flex items-center">
       <Image
         src="/logo.svg"
         alt="Get Easy logo"
@@ -10,6 +11,6 @@ export const Logo = () => {
         height={30}
         className="object-cover"
       />
-    </div>
+    </Link>
   );
 };

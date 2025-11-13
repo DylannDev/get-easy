@@ -47,8 +47,8 @@
   --color-black: var(--black);
   --color-green: var(--green);
   --color-gray: var(--gray);
-  --font-sans: var(--font-inter-tight);
-  --font-mono: var(--font-inter-tight);
+  --font-sans: var(--font-dmsans);
+  --font-mono: var(--font-dmsans);
   --font-title: var(--font-unbounded);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -147,11 +147,16 @@
 }
 
 .PhoneInputCountrySelect {
-  height: 2.5rem;
-  background-color: red;
-  padding-left: 0.5rem;
-  padding-right: 0.5rem;
+  appearance: none;
+  border: none;
+  background-color: transparent;
+  padding: 0;
   font-size: 0.875rem;
+  outline: none;
+  cursor: pointer;
+}
+
+.PhoneInputCountrySelect:focus {
   outline: none;
 }
 
@@ -169,3 +174,14 @@
   margin-left: 0.25rem;
   opacity: 0.5;
 }
+
+/* Style du dropdown pour correspondre au SelectContent */
+.PhoneInputCountrySelect option {
+  background-color: white;
+  color: black;
+  padding: 0.375rem 0.5rem;
+}
+
+/* On ne peut pas vraiment styler le dropdown natif comme Radix UI SelectContent
+   car c'est un élément natif du navigateur. Pour une vraie uniformité,
+   il faudrait créer un composant custom avec Radix UI Select */
