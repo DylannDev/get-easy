@@ -8,11 +8,13 @@ import type { Vehicle } from "@/types";
 import { Button } from "@/components/ui/button";
 import { DateTimePicker } from "@/components/search-form/date-time-picker";
 import { generateTimeSlots, calculateTotalPrice } from "@/lib/utils";
+import { LoadingSpinner } from "@/components/loading-spinner";
 
 interface BookingSummaryProps {
   vehicle: Vehicle;
   startDate: Date;
   endDate: Date;
+  currentStep?: number;
   onProceedToForm?: () => void;
 }
 
@@ -20,6 +22,7 @@ export const BookingSummary = ({
   vehicle,
   startDate,
   endDate,
+  currentStep = 1,
   onProceedToForm,
 }: BookingSummaryProps) => {
   const router = useRouter();
@@ -190,7 +193,11 @@ export const BookingSummary = ({
     const fullEndDate = new Date(dateRange.to);
     fullEndDate.setHours(endHour, endMinute, 0, 0);
 
-    const result = calculateTotalPrice(fullStartDate, fullEndDate, vehicle.pricePerDay);
+    const result = calculateTotalPrice(
+      fullStartDate,
+      fullEndDate,
+      vehicle.pricePerDay
+    );
     return { numberOfDays: result.totalDays, totalPrice: result.totalPrice };
   }, [dateRange, startTime, endTime, vehicle.pricePerDay]);
 
@@ -284,7 +291,7 @@ export const BookingSummary = ({
       </div>
 
       {/* Total */}
-      <div className="border-t border-gray-200 pt-6 mb-6">
+      <div className="border-t border-gray-200 pt-6">
         <div className="flex justify-between items-center">
           <h4 className="text-lg font-semibold">Total</h4>
           <span className="text-2xl font-bold text-black">
@@ -293,13 +300,18 @@ export const BookingSummary = ({
         </div>
       </div>
 
-      {/* CTA Button */}
+      {/* CTA Button avec spinner pendant l'étape 2 */}
       <Button
-        className="w-full"
-        onClick={onProceedToForm}
+        className="w-full mt-6"
+        disabled={currentStep === 2}
         type="button"
+        onClick={onProceedToForm}
       >
-        Finaliser la réservation
+        {currentStep === 2 ? (
+          <LoadingSpinner variant="green" size="sm" />
+        ) : (
+          "Valider"
+        )}
       </Button>
     </div>
   );

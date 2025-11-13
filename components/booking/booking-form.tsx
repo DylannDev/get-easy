@@ -10,8 +10,7 @@ import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
 import { NativeSelect } from "@/components/ui/native-select";
 import { ArrowLeft } from "lucide-react";
-import PhoneInput from "react-phone-number-input";
-import "react-phone-number-input/style.css";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { getCountriesList } from "@/lib/countries";
 import { cn } from "@/lib/utils";
 
@@ -60,10 +59,11 @@ export const BookingForm = ({ onBack }: BookingFormProps) => {
         <Button
           type="button"
           onClick={onBack}
-          variant="ghost"
-          className="mb-4 -ml-3"
+          variant="default"
+          size="xs"
+          className="mb-4 group"
         >
-          <ArrowLeft className="size-4" />
+          <ArrowLeft className="size-3 group-hover:-translate-x-1 transition-all duration-300" />
           Retour
         </Button>
         <h2 className="text-2xl font-bold">Vos informations</h2>
@@ -111,22 +111,21 @@ export const BookingForm = ({ onBack }: BookingFormProps) => {
               <label htmlFor="phone" className="text-sm font-medium mb-1">
                 Téléphone <span className="text-red-500">*</span>
               </label>
-              <div className={cn(errors.phone && "phone-input-error")}>
-                <Controller
-                  name="phone"
-                  control={control}
-                  render={({ field }) => (
-                    <PhoneInput
-                      {...field}
-                      id="phone"
-                      placeholder="Entrez votre numéro de téléphone"
-                      defaultCountry="FR"
-                      international
-                      countryCallingCodeEditable={false}
-                    />
-                  )}
-                />
-              </div>
+              <Controller
+                name="phone"
+                control={control}
+                render={({ field }) => (
+                  <PhoneInput
+                    {...field}
+                    id="phone"
+                    placeholder="Entrez votre numéro de téléphone"
+                    className={cn(
+                      errors.phone && "border-red-500",
+                      "phone-input"
+                    )}
+                  />
+                )}
+              />
               {errors.phone && (
                 <p className="text-xs text-red-600 mt-2">
                   {errors.phone.message}
