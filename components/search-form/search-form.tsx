@@ -6,10 +6,14 @@ import { DateTimePicker } from "@/components/search-form/date-time-picker";
 import { VehicleResults } from "@/components/search-form/vehicle-results";
 import { useSearchForm } from "@/hooks/use-search-form";
 import Image from "next/image";
+import type { Agency } from "@/types";
 
-export const SearchForm = () => {
+interface SearchFormProps {
+  agencies: Agency[];
+}
+
+export const SearchForm = ({ agencies }: SearchFormProps) => {
   const {
-    agencies,
     agencyId,
     dateRange,
     startTime,
@@ -17,8 +21,10 @@ export const SearchForm = () => {
     submitted,
     openStartCalendar,
     openEndCalendar,
-    isLoading,
+    isSubmitting,
     timeSlots,
+    availableStartTimeSlots,
+    isTodayDisabled,
     filtered,
     error,
     startTimeRef,
@@ -29,8 +35,23 @@ export const SearchForm = () => {
     setOpenStartCalendar,
     setOpenEndCalendar,
     handleDateRangeChange,
-    onSubmit,
-  } = useSearchForm();
+    handleSubmit,
+  } = useSearchForm(agencies);
+
+  // Function to disable dates in the start date picker
+  const isStartDateDisabled = (date: Date) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const checkDate = new Date(date);
+    checkDate.setHours(0, 0, 0, 0);
+
+    // Disable if date is today and no time slots available
+    if (checkDate.getTime() === today.getTime() && isTodayDisabled) {
+      return true;
+    }
+
+    return false;
+  };
 
   return (
     <section className="w-full">
@@ -55,7 +76,7 @@ export const SearchForm = () => {
             </h2>
           </div>
 
-          <form onSubmit={onSubmit} className=" rounded-xl bg-white p-3">
+          <form onSubmit={handleSubmit(async () => {})} className=" rounded-xl bg-white p-3">
             <div className="flex items-end">
               <div className="flex-1 flex items-center gap-3 divide-x divide-gray/30">
                 {/* Agency Selection */}
@@ -72,11 +93,12 @@ export const SearchForm = () => {
                   onDateRangeChange={handleDateRangeChange}
                   selectedTime={startTime}
                   onTimeChange={setStartTime}
-                  timeSlots={timeSlots}
+                  timeSlots={availableStartTimeSlots}
                   dateValue={dateRange?.from}
                   openCalendar={openStartCalendar}
                   onOpenCalendarChange={setOpenStartCalendar}
                   timeRef={startTimeRef}
+                  disabledDates={isStartDateDisabled}
                 />
 
                 {/* End Date & Time */}
@@ -116,7 +138,7 @@ export const SearchForm = () => {
           <VehicleResults
             vehicles={filtered}
             isSubmitted={submitted}
-            isLoading={isLoading}
+            isSubmitting={isSubmitting}
             dateRange={dateRange}
             startTime={startTime}
             endTime={endTime}

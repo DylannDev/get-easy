@@ -1,7 +1,9 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useRouter } from "next/navigation";
 import {
   bookingFormSchema,
   type BookingFormData,
@@ -12,14 +14,44 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { ArrowLeft } from "lucide-react";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { getCountriesList } from "@/lib/countries";
-import { cn } from "@/lib/utils";
+import { cn, calculateTotalPrice } from "@/lib/utils";
+import {
+  handleDateInputChange,
+  handleDateKeyDown,
+} from "@/lib/format-date-input";
+import { createBookingAction } from "@/actions/create-booking";
+import type { Vehicle } from "@/types";
+import { toast } from "sonner";
 
 interface BookingFormProps {
   onBack: () => void;
+  vehicle: Vehicle;
+  agencyId: string;
+  startDate: Date;
+  endDate: Date;
 }
 
-export const BookingForm = ({ onBack }: BookingFormProps) => {
+export const BookingForm = ({
+  onBack,
+  vehicle,
+  agencyId,
+  startDate,
+  endDate,
+}: BookingFormProps) => {
+  const router = useRouter();
   const countries = getCountriesList();
+  const [bookingError, setBookingError] = useState<string | null>(null);
+
+  // Calculer le prix total
+  const totalPrice = useMemo(() => {
+    const result = calculateTotalPrice(
+      startDate,
+      endDate,
+      vehicle.pricePerDay,
+      vehicle.pricingTiers
+    );
+    return result.totalPrice;
+  }, [startDate, endDate, vehicle.pricePerDay, vehicle.pricingTiers]);
 
   const {
     register,
@@ -47,9 +79,44 @@ export const BookingForm = ({ onBack }: BookingFormProps) => {
   });
 
   const onSubmit = async (data: BookingFormData) => {
-    // Pour l'instant, on logue juste les données
-    console.log("Données du formulaire :", data);
-    // TODO: Implémenter la logique de soumission et paiement
+    try {
+      setBookingError(null);
+
+      // Appeler la Server Action pour créer la réservation et la session Stripe
+      const result = await createBookingAction({
+        customerData: data,
+        vehicleId: vehicle.id,
+        agencyId,
+        startDate,
+        endDate,
+        totalPrice,
+      });
+
+      if (!result.success) {
+        setBookingError(result.error || "Une erreur est survenue");
+        toast.error(result.error || "Une erreur est survenue");
+        return;
+      }
+
+      // Vérifier que nous avons une URL de checkout
+      if (!result.checkoutUrl) {
+        setBookingError("Impossible de créer la session de paiement");
+        toast.error("Impossible de créer la session de paiement");
+        return;
+      }
+
+      console.log("✅ Réservation créée:", {
+        customerId: result.customerId,
+        bookingId: result.bookingId,
+      });
+
+      // Rediriger vers Stripe Checkout
+      router.push(result.checkoutUrl);
+    } catch (error) {
+      console.error("❌ Erreur lors de la soumission:", error);
+      setBookingError("Une erreur inattendue s'est produite");
+      toast.error("Une erreur inattendue s'est produite");
+    }
   };
 
   return (
@@ -68,6 +135,13 @@ export const BookingForm = ({ onBack }: BookingFormProps) => {
         </Button>
         <h2 className="text-2xl font-bold">Vos informations</h2>
       </div>
+
+      {/* Affichage de l'erreur de réservation */}
+      {bookingError && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+          {bookingError}
+        </div>
+      )}
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
         {/* Section 1 - Infos générales */}
@@ -135,13 +209,23 @@ export const BookingForm = ({ onBack }: BookingFormProps) => {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <FormField
-              id="birthDate"
-              label="Date de naissance"
-              type="text"
-              placeholder="JJ/MM/AAAA"
-              {...register("birthDate")}
-              error={errors.birthDate?.message}
+            <Controller
+              name="birthDate"
+              control={control}
+              render={({ field }) => (
+                <FormField
+                  id="birthDate"
+                  label="Date de naissance"
+                  type="text"
+                  placeholder="JJ/MM/AAAA"
+                  maxLength={10}
+                  value={field.value}
+                  onChange={(e) => handleDateInputChange(e, field.onChange)}
+                  onKeyDown={(e) => handleDateKeyDown(e, field.onChange)}
+                  onBlur={field.onBlur}
+                  error={errors.birthDate?.message}
+                />
+              )}
             />
 
             <FormField
@@ -222,13 +306,23 @@ export const BookingForm = ({ onBack }: BookingFormProps) => {
           />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <FormField
-              id="driverLicenseIssuedAt"
-              label="Date d'obtention"
-              type="text"
-              placeholder="JJ/MM/AAAA"
-              {...register("driverLicenseIssuedAt")}
-              error={errors.driverLicenseIssuedAt?.message}
+            <Controller
+              name="driverLicenseIssuedAt"
+              control={control}
+              render={({ field }) => (
+                <FormField
+                  id="driverLicenseIssuedAt"
+                  label="Date d'obtention"
+                  type="text"
+                  placeholder="JJ/MM/AAAA"
+                  maxLength={10}
+                  value={field.value}
+                  onChange={(e) => handleDateInputChange(e, field.onChange)}
+                  onKeyDown={(e) => handleDateKeyDown(e, field.onChange)}
+                  onBlur={field.onBlur}
+                  error={errors.driverLicenseIssuedAt?.message}
+                />
+              )}
             />
 
             <NativeSelect

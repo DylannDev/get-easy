@@ -9,7 +9,7 @@ import Link from "next/link";
 interface VehicleResultsProps {
   vehicles: Vehicle[];
   isSubmitted: boolean;
-  isLoading: boolean;
+  isSubmitting: boolean;
   dateRange?: DateRange;
   startTime?: string;
   endTime?: string;
@@ -18,7 +18,7 @@ interface VehicleResultsProps {
 export const VehicleResults = ({
   vehicles,
   isSubmitted,
-  isLoading,
+  isSubmitting,
   dateRange,
   startTime,
   endTime,
@@ -56,7 +56,7 @@ export const VehicleResults = ({
   return (
     <>
       <h1 className="text-3xl font-bold mb-6">Sélectionnez votre véhicule</h1>
-      {isLoading ? (
+      {isSubmitting ? (
         <LoadingSpinner className="py-20" />
       ) : (
         <VehicleGrid
@@ -109,6 +109,16 @@ const VehicleGrid = ({
   const hasDates = dateRange?.from && dateRange?.to && startTime && endTime;
 
   const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    // Ne pas naviguer si on clique sur le bouton info ou le popover
+    const target = e.target as HTMLElement;
+    if (
+      target.closest('[data-popover-trigger]') ||
+      target.closest('[data-radix-popper-content-wrapper]')
+    ) {
+      e.preventDefault();
+      return;
+    }
+
     if (!hasDates) {
       e.preventDefault();
       onClickWithoutDates?.();

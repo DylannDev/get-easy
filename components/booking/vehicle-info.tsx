@@ -21,7 +21,7 @@ export const VehicleInfo = ({ vehicle }: VehicleInfoProps) => {
       {/* Vehicle Image */}
       <div className="relative aspect-video w-full overflow-hidden rounded-xl border border-gray-300">
         <Image
-          src={vehicle.img}
+          src={"/vehicles/clio-grise.png"}
           alt={`${vehicle.brand} ${vehicle.model}`}
           fill
           className="object-cover"

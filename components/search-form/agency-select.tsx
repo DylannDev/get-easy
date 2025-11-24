@@ -8,12 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
-interface Agency {
-  id: string;
-  name: string;
-  city: string;
-}
+import type { Agency } from "@/types";
 
 interface AgencySelectProps {
   agencies: Agency[];

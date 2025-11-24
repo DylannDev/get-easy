@@ -23,7 +23,7 @@ interface DateTimePickerProps {
   label: string;
   dateRange: DateRange | undefined;
   onDateRangeChange: (range: DateRange | undefined) => void;
-  selectedTime: string;
+  selectedTime: string | undefined;
   onTimeChange: (time: string) => void;
   timeSlots: string[];
   dateValue: Date | undefined;
@@ -139,10 +139,15 @@ export const DateTimePicker = forwardRef<
               ref={timeRef}
               className={cn(
                 "w-full cursor-pointer",
-                showBorder && "border border-gray-300 rounded-md p-2"
+                showBorder && "border border-gray-300 rounded-md p-2",
+                !selectedTime && "[&_svg]:opacity-50"
               )}
             >
-              <SelectValue />
+              {selectedTime ? (
+                <SelectValue />
+              ) : (
+                <span className="text-muted-foreground">Heure</span>
+              )}
             </SelectTrigger>
             <SelectContent sideOffset={16}>
               {timeSlots.map((time) => (

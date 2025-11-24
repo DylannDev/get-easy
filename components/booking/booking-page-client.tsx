@@ -9,6 +9,7 @@ import { Timeline, type TimelineStep } from "@/components/ui/timeline";
 
 interface BookingPageClientProps {
   vehicle: Vehicle;
+  agencyId: string;
   startDate: Date;
   endDate: Date;
 }
@@ -22,6 +23,7 @@ const BOOKING_STEPS: TimelineStep[] = [
 
 export const BookingPageClient = ({
   vehicle,
+  agencyId,
   startDate,
   endDate,
 }: BookingPageClientProps) => {
@@ -72,7 +74,13 @@ export const BookingPageClient = ({
         {/* Left Column - Vehicle Info or Form */}
         <div className="lg:col-span-2">
           {showForm ? (
-            <BookingForm onBack={handleBackFromForm} />
+            <BookingForm
+              onBack={handleBackFromForm}
+              vehicle={vehicle}
+              agencyId={agencyId}
+              startDate={startDate}
+              endDate={endDate}
+            />
           ) : (
             <VehicleInfo vehicle={vehicle} />
           )}

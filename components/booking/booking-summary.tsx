@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { DateTimePicker } from "@/components/search-form/date-time-picker";
 import { LoadingSpinner } from "@/components/loading-spinner";
 import { useBookingSummary } from "@/hooks/use-booking-summary";
+import { getPricePerDay } from "@/lib/utils";
 
 interface BookingSummaryProps {
   vehicle: Vehicle;
@@ -39,6 +40,12 @@ export const BookingSummary = ({
     isDateBlocked,
     isEndDateDisabled,
   } = useBookingSummary({ vehicle, startDate, endDate });
+
+  // Calcul du tarif applicable en fonction du nombre de jours
+  const applicablePricePerDay =
+    vehicle.pricingTiers && numberOfDays > 0
+      ? getPricePerDay(numberOfDays, vehicle.pricingTiers)
+      : vehicle.pricePerDay;
 
   return (
     <div className="rounded-xl border border-gray-300 bg-white p-6 lg:sticky lg:top-28">
@@ -88,7 +95,7 @@ export const BookingSummary = ({
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-gray-600">Tarif / jour</span>
-            <span className="font-medium">{vehicle.pricePerDay} €</span>
+            <span className="font-medium">{applicablePricePerDay} €</span>
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-gray-600">Nombre de jours</span>
