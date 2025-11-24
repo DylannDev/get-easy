@@ -1,10 +1,10 @@
-import { SearchForm } from "@/components/search-form/search-form";
+import { SearchFormWrapper } from "@/components/search-form/search-form-wrapper";
 
 export default function Home() {
   return (
     <div className="flex min-h-dvh w-full flex-col px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
       <main className="flex-1 space-y-6">
-        <SearchForm />
+        <SearchFormWrapper />
       </main>
     </div>
   );
