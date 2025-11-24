@@ -1,21 +1,32 @@
 import { redirect } from "next/navigation";
-import { findVehicleById, validateDates } from "@/lib/utils";
+import { validateDates } from "@/lib/utils";
 import { BookingPageClient } from "@/components/booking/booking-page-client";
+import { getVehicleById } from "@/lib/supabase/queries";
+import { mapVehicleFromDB } from "@/lib/supabase/mappers";
 
 interface BookingPageProps {
   params: Promise<{ vehicleId: string }>;
   searchParams: Promise<{ start?: string; end?: string }>;
 }
 
+const VEHICLE_IMAGE_URLS: Record<string, string> = {
+  default: "/renault-clio.png",
+};
+
 export async function generateMetadata({ params }: BookingPageProps) {
   const { vehicleId } = await params;
-  const vehicle = findVehicleById(vehicleId);
+  const dbVehicle = await getVehicleById(vehicleId);
 
-  if (!vehicle) {
+  if (!dbVehicle) {
     return {
       title: "Véhicule introuvable - Get Easy",
     };
   }
+
+  const vehicle = mapVehicleFromDB(
+    dbVehicle,
+    VEHICLE_IMAGE_URLS[dbVehicle.id] || VEHICLE_IMAGE_URLS.default
+  );
 
   return {
     title: `Réservation ${vehicle.brand} ${vehicle.model} - Get Easy`,
@@ -30,18 +41,48 @@ export default async function BookingPage({
   const { vehicleId } = await params;
   const { start, end } = await searchParams;
 
-  // Find vehicle
-  const vehicle = findVehicleById(vehicleId);
-  if (!vehicle) {
+  // Find vehicle from Supabase
+  const dbVehicle = await getVehicleById(vehicleId);
+  if (!dbVehicle) {
     redirect("/");
   }
 
-  // Valide les dates
-  const { isValid, startDate, endDate } = validateDates(start, end);
-  // Redirige uniquement si les dates sont invalides, pas si elles sont simplement manquantes
-  // Car l'utilisateur peut modifier les dates dans le composant BookingSummary
-  if (!isValid || !startDate || !endDate) {
-    redirect("/");
+  const vehicle = mapVehicleFromDB(
+    dbVehicle,
+    VEHICLE_IMAGE_URLS[dbVehicle.id] || VEHICLE_IMAGE_URLS.default
+  );
+
+  // Récupérer l'agencyId depuis le véhicule DB
+  const agencyId = dbVehicle.agency_id;
+
+  // Parse dates from URL or use defaults
+  let startDate: Date;
+  let endDate: Date;
+
+  if (start && end) {
+    const {
+      isValid,
+      startDate: parsedStart,
+      endDate: parsedEnd,
+    } = validateDates(start, end);
+    if (isValid && parsedStart && parsedEnd) {
+      startDate = parsedStart;
+      endDate = parsedEnd;
+    } else {
+      // Use default dates if parsing fails
+      startDate = new Date();
+      startDate.setHours(8, 0, 0, 0);
+      endDate = new Date();
+      endDate.setDate(endDate.getDate() + 1);
+      endDate.setHours(8, 0, 0, 0);
+    }
+  } else {
+    // No dates provided, use defaultsxj
+    startDate = new Date();
+    startDate.setHours(8, 0, 0, 0);
+    endDate = new Date();
+    endDate.setDate(endDate.getDate() + 1);
+    endDate.setHours(8, 0, 0, 0);
   }
 
   return (
@@ -50,6 +91,7 @@ export default async function BookingPage({
         {/* Booking Content with Timeline */}
         <BookingPageClient
           vehicle={vehicle}
+          agencyId={agencyId}
           startDate={startDate}
           endDate={endDate}
         />
