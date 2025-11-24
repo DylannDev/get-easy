@@ -190,10 +190,11 @@ export const useBookingSummary = ({
     const result = calculateTotalPrice(
       fullStartDate,
       fullEndDate,
-      vehicle.pricePerDay
+      vehicle.pricePerDay,
+      vehicle.pricingTiers
     );
     return { numberOfDays: result.totalDays, totalPrice: result.totalPrice };
-  }, [dateRange, startTime, endTime, vehicle.pricePerDay]);
+  }, [dateRange, startTime, endTime, vehicle.pricePerDay, vehicle.pricingTiers]);
 
   // Met à jour les paramètres URL quand les dates ou heures changent
   useEffect(() => {

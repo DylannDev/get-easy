@@ -1,33 +1,42 @@
 import { useMemo, useState, useRef, useEffect } from "react";
+import { useForm, useWatch } from "react-hook-form";
+import { isAfter, parse } from "date-fns";
 import type { DateRange } from "react-day-picker";
-import type { Vehicle } from "@/types";
-import {
-  isVehicleAvailable,
-  getAllAgencies,
-  generateTimeSlots,
-} from "@/lib/utils";
-import { organizations } from "@/data/vehicles";
+import type { Vehicle, Agency } from "@/types";
+import { isVehicleAvailable, generateTimeSlots } from "@/lib/utils";
 
-export const useSearchForm = () => {
-  const agencies = getAllAgencies(organizations);
+interface SearchFormData {
+  agencyId: string;
+  dateRange?: DateRange;
+  startTime?: string;
+  endTime?: string;
+}
 
+export const useSearchForm = (agencies: Agency[]) => {
   // Auto-select agency if there's only one
   const defaultAgencyId = agencies.length === 1 ? agencies[0].id : "";
 
-  const [agencyId, setAgencyId] = useState(defaultAgencyId);
-  const [dateRange, setDateRange] = useState<DateRange | undefined>();
-  const [startTime, setStartTime] = useState("08:00");
-  const [endTime, setEndTime] = useState("08:00");
-  const [submitted, setSubmitted] = useState(false);
+  const { handleSubmit, control, setValue, formState: { isSubmitting } } = useForm<SearchFormData>({
+    defaultValues: {
+      agencyId: defaultAgencyId,
+      dateRange: undefined,
+      startTime: undefined,
+      endTime: undefined,
+    },
+  });
+
+  const agencyId = useWatch({ control, name: "agencyId" });
+  const dateRange = useWatch({ control, name: "dateRange" });
+  const startTime = useWatch({ control, name: "startTime" });
+  const endTime = useWatch({ control, name: "endTime" });
+
   const [openStartCalendar, setOpenStartCalendar] = useState(false);
   const [openEndCalendar, setOpenEndCalendar] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
 
   const startTimeRef = useRef<HTMLButtonElement>(null);
   const endTimeRef = useRef<HTMLButtonElement>(null);
   const previousStartDateRef = useRef<Date | undefined>(undefined);
   const previousEndDateRef = useRef<Date | undefined>(undefined);
-  const previousEndTimeRef = useRef<string>("");
 
   // Custom handler to prevent auto-setting end date equal to start date
   const handleDateRangeChange = (range: DateRange | undefined) => {
@@ -37,9 +46,9 @@ export const useSearchForm = () => {
       range?.to &&
       range.from.getTime() === range.to.getTime()
     ) {
-      setDateRange({ from: range.from, to: undefined });
+      setValue("dateRange", { from: range.from, to: undefined });
     } else {
-      setDateRange(range);
+      setValue("dateRange", range);
     }
   };
 
@@ -81,6 +90,50 @@ export const useSearchForm = () => {
     return generateTimeSlots(selectedAgency.hours);
   }, [selectedAgency]);
 
+  // Filter available start time slots based on current date/time
+  const availableStartTimeSlots = useMemo(() => {
+    if (!dateRange?.from) return timeSlots;
+
+    const selectedDate = new Date(dateRange.from);
+    selectedDate.setHours(0, 0, 0, 0);
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // If selected date is not today, all time slots are available
+    if (selectedDate.getTime() !== today.getTime()) {
+      return timeSlots;
+    }
+
+    // If selected date is today, filter out past time slots
+    const now = new Date();
+
+    return timeSlots.filter((timeSlot) => {
+      const slotTime = parse(timeSlot, "HH:mm", new Date());
+      slotTime.setFullYear(now.getFullYear(), now.getMonth(), now.getDate());
+
+      return isAfter(slotTime, now) || slotTime.getTime() === now.getTime();
+    });
+  }, [dateRange, timeSlots]);
+
+  // Check if today should be disabled (no available time slots)
+  const isTodayDisabled = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const now = new Date();
+    const currentHours = now.getHours();
+    const currentMinutes = now.getMinutes();
+
+    // Check if any time slot is available today
+    const hasAvailableSlots = timeSlots.some((timeSlot) => {
+      const [hours, minutes] = timeSlot.split(":").map(Number);
+      return hours > currentHours || (hours === currentHours && minutes > currentMinutes);
+    });
+
+    return !hasAvailableSlots;
+  }, [timeSlots]);
+
   // Auto-focus on time select when dates are selected
   useEffect(() => {
     const currentStartDate = dateRange?.from;
@@ -115,31 +168,10 @@ export const useSearchForm = () => {
     previousEndDateRef.current = currentEndDate;
   }, [dateRange?.from, dateRange?.to, openStartCalendar, openEndCalendar]);
 
-  // Auto-submit when end time is selected
-  useEffect(() => {
-    // Only trigger if endTime has actually changed and is not the initial value
-    if (
-      previousEndTimeRef.current !== "" &&
-      endTime !== previousEndTimeRef.current &&
-      agencyId &&
-      dateRange?.from &&
-      dateRange?.to
-    ) {
-      // Simulate loading with async function
-      const submitSearch = async () => {
-        setSubmitted(true);
-        setIsLoading(true);
-        // Simulate API call delay
-        // await new Promise((resolve) => setTimeout(resolve, 2000));
-        setIsLoading(false);
-      };
-
-      submitSearch();
-    }
-
-    // Update the ref after checking
-    previousEndTimeRef.current = endTime;
-  }, [endTime, agencyId, dateRange]);
+  // Auto-submit: submitted is true when all required data is present
+  const submitted = useMemo(() => {
+    return !!(agencyId && dateRange?.from && dateRange?.to && startTime && endTime);
+  }, [agencyId, dateRange?.from, dateRange?.to, startTime, endTime]);
 
   // Get all vehicles from all agencies
   const allVehicles = useMemo(() => {
@@ -165,6 +197,14 @@ export const useSearchForm = () => {
       return {
         filtered: [] as Vehicle[],
         error: "Veuillez sélectionner vos dates de location.",
+      };
+    }
+
+    // If submitted but no times selected, show error
+    if (!startTime || !endTime) {
+      return {
+        filtered: [] as Vehicle[],
+        error: "Veuillez sélectionner les heures de location.",
       };
     }
 
@@ -204,17 +244,7 @@ export const useSearchForm = () => {
     allVehicles,
   ]);
 
-  const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setSubmitted(true);
-    setIsLoading(true);
-    // Simulate API call delay
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    setIsLoading(false);
-  };
-
   return {
-    agencies,
     agencyId,
     dateRange,
     startTime,
@@ -222,18 +252,20 @@ export const useSearchForm = () => {
     submitted,
     openStartCalendar,
     openEndCalendar,
-    isLoading,
+    isSubmitting,
     timeSlots,
+    availableStartTimeSlots,
+    isTodayDisabled,
     filtered,
     error,
     startTimeRef,
     endTimeRef,
-    setAgencyId,
-    setStartTime,
-    setEndTime,
+    setAgencyId: (value: string) => setValue("agencyId", value),
+    setStartTime: (value: string | undefined) => setValue("startTime", value),
+    setEndTime: (value: string | undefined) => setValue("endTime", value),
     setOpenStartCalendar,
     setOpenEndCalendar,
     handleDateRangeChange,
-    onSubmit,
+    handleSubmit,
   };
 };
