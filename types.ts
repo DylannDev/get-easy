@@ -3,11 +3,17 @@ export interface BlockedPeriod {
   end: string; // ISO DateTime string, local
 }
 
+export interface PricingTier {
+  minDays: number;
+  pricePerDay: number;
+}
+
 export interface Vehicle {
   id: string;
   brand: string;
   model: string;
-  pricePerDay: number;
+  pricePerDay: number; // Deprecated: kept for backwards compatibility
+  pricingTiers: PricingTier[];
   numberOfSeats: number;
   numberOfDoors: number;
   trunkSize: string; // e.g., "3 bagages"
