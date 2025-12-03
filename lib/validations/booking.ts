@@ -34,10 +34,9 @@ export const bookingFormSchema = z
       ),
     birthDate: z
       .string()
-      .optional()
+      .min(1, "La date de naissance est requise")
       .refine(
         (val) => {
-          if (!val) return true;
           const date = parseFrenchDate(val);
           return date !== null;
         },
@@ -45,7 +44,6 @@ export const bookingFormSchema = z
       )
       .refine(
         (val) => {
-          if (!val) return true;
           const date = parseFrenchDate(val);
           if (!date) return false;
           const age = differenceInYears(new Date(), date);

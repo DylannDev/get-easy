@@ -1,5 +1,7 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
 import type { Vehicle, Agency, Organization, AgencyHours } from "@/types";
 import { organizations } from "@/data/vehicles";
 
@@ -196,4 +198,137 @@ export function calculateTotalPrice(
   const totalPrice = totalDays * applicablePricePerDay;
 
   return { totalDays, totalPrice };
+}
+
+/**
+ * Vérifie si deux dates sont le même jour (ignore l'heure)
+ */
+export function isSameDay(date1: Date, date2: Date): boolean {
+  const d1 = new Date(date1);
+  const d2 = new Date(date2);
+  d1.setHours(0, 0, 0, 0);
+  d2.setHours(0, 0, 0, 0);
+  return d1.getTime() === d2.getTime();
+}
+
+/**
+ * Formate une date au format français dd/MM/yyyy HH:mm
+ */
+export function formatDateTimeFR(date: Date): string {
+  return format(date, "dd/MM/yyyy HH:mm", { locale: fr });
+}
+
+/**
+ * Valide et ajuste l'heure de retour pour un same-day booking
+ * Retourne le créneau ajusté si nécessaire, ou null si OK
+ */
+export function validateSameDayBookingTime(
+  dateFrom: Date,
+  dateTo: Date,
+  startTime: string,
+  endTime: string,
+  timeSlots: string[],
+  interval: number = 30
+): { isValid: boolean; suggestedTime?: string; minReturnTime?: string } {
+  // Si ce n'est pas un same-day booking, pas de validation spécifique
+  if (!isSameDay(dateFrom, dateTo)) {
+    return { isValid: true };
+  }
+
+  const [startHour, startMinute] = startTime.split(":").map(Number);
+  const [endHour, endMinute] = endTime.split(":").map(Number);
+
+  const startMinutes = startHour * 60 + startMinute;
+  const endMinutes = endHour * 60 + endMinute;
+
+  // Si l'heure de retour est <= à l'heure de départ
+  if (endMinutes <= startMinutes) {
+    // Calculer l'heure minimale de retour (départ + intervalle)
+    const minReturnMinutes = startMinutes + interval;
+    const minReturnHour = Math.floor(minReturnMinutes / 60);
+    const minReturnMinute = minReturnMinutes % 60;
+    const minReturnTime = `${minReturnHour.toString().padStart(2, "0")}:${minReturnMinute.toString().padStart(2, "0")}`;
+
+    // Trouver le créneau disponible le plus proche
+    const suggestedTime = timeSlots.find((slot) => {
+      const [slotHour, slotMinute] = slot.split(":").map(Number);
+      const slotMinutes = slotHour * 60 + slotMinute;
+      return slotMinutes > startMinutes;
+    });
+
+    return {
+      isValid: false,
+      suggestedTime,
+      minReturnTime,
+    };
+  }
+
+  return { isValid: true };
+}
+
+/**
+ * Filtre les créneaux horaires disponibles pour le retour en cas de same-day booking
+ * Retourne tous les créneaux si ce n'est pas un same-day booking
+ * Retourne uniquement les créneaux > heure de départ si c'est un same-day booking
+ */
+export function getAvailableEndTimeSlots(
+  dateFrom: Date | undefined,
+  dateTo: Date | undefined,
+  startTime: string | undefined,
+  timeSlots: string[]
+): string[] {
+  // Si pas de same-day booking, toutes les heures sont disponibles
+  if (!dateFrom || !dateTo || !startTime) {
+    return timeSlots;
+  }
+
+  const isSameDayBooking = dateFrom.getTime() === dateTo.getTime();
+  if (!isSameDayBooking) {
+    return timeSlots;
+  }
+
+  // Pour same-day : filtrer les heures > startTime
+  const [startHour, startMinute] = startTime.split(":").map(Number);
+  const startMinutes = startHour * 60 + startMinute;
+
+  return timeSlots.filter((slot) => {
+    const [slotHour, slotMinute] = slot.split(":").map(Number);
+    const slotMinutes = slotHour * 60 + slotMinute;
+    return slotMinutes > startMinutes;
+  });
+}
+
+/**
+ * Vérifie si une réservation est toujours valide (non expirée)
+ * Une réservation est valide si:
+ * - status = "paid" (toujours valide)
+ * - status = "pending_payment" ET expires_at > maintenant
+ */
+export interface BookingWithExpiration {
+  status: string;
+  expires_at?: string | null;
+}
+
+export function isBookingStillValid(booking: BookingWithExpiration): boolean {
+  // Les réservations payées sont toujours valides
+  if (booking.status === "paid") {
+    return true;
+  }
+
+  // Pour les pending_payment, vérifier l'expiration
+  if (booking.status === "pending_payment") {
+    // Si pas d'expires_at, considérer comme expiré (sécurité)
+    if (!booking.expires_at) {
+      return false;
+    }
+
+    const expiresAt = new Date(booking.expires_at);
+    const now = new Date();
+
+    // Valide si expires_at est dans le futur
+    return expiresAt > now;
+  }
+
+  // Autres statuts (cancelled, expired, etc.) = non valide
+  return false;
 }
