@@ -1,9 +1,11 @@
-import { useMemo, useState, useRef, useEffect } from "react";
+import { useMemo, useState, useRef } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { isAfter, parse } from "date-fns";
 import type { DateRange } from "react-day-picker";
 import type { Vehicle, Agency } from "@/types";
-import { isVehicleAvailable, generateTimeSlots } from "@/lib/utils";
+import { generateTimeSlots, getAvailableEndTimeSlots } from "@/lib/utils";
+import { isVehicleAvailableWithBookings } from "@/lib/availability";
+import type { VehicleBooking } from "@/actions/get-vehicle-bookings";
 
 interface SearchFormData {
   agencyId: string;
@@ -12,7 +14,12 @@ interface SearchFormData {
   endTime?: string;
 }
 
-export const useSearchForm = (agencies: Agency[]) => {
+interface UseSearchFormProps {
+  agencies: Agency[];
+  bookingsMap?: Map<string, VehicleBooking[]>;
+}
+
+export const useSearchForm = ({ agencies, bookingsMap = new Map() }: UseSearchFormProps) => {
   // Auto-select agency if there's only one
   const defaultAgencyId = agencies.length === 1 ? agencies[0].id : "";
 
@@ -35,20 +42,34 @@ export const useSearchForm = (agencies: Agency[]) => {
 
   const startTimeRef = useRef<HTMLButtonElement>(null);
   const endTimeRef = useRef<HTMLButtonElement>(null);
-  const previousStartDateRef = useRef<Date | undefined>(undefined);
-  const previousEndDateRef = useRef<Date | undefined>(undefined);
 
-  // Custom handler to prevent auto-setting end date equal to start date
-  const handleDateRangeChange = (range: DateRange | undefined) => {
-    // If both from and to are the same, only set from
-    if (
-      range?.from &&
-      range?.to &&
-      range.from.getTime() === range.to.getTime()
-    ) {
-      setValue("dateRange", { from: range.from, to: undefined });
-    } else {
-      setValue("dateRange", range);
+  // Handler pour la date de départ
+  const handleStartDateChange = (range: DateRange | undefined) => {
+    if (!range?.from) return;
+
+    // Met à jour uniquement la date de départ
+    setValue("dateRange", { from: range.from, to: dateRange?.to });
+
+    // Ferme le calendrier et ouvre le sélecteur d'heure
+    setOpenStartCalendar(false);
+    setTimeout(() => startTimeRef.current?.click(), 100);
+  };
+
+  // Handler pour la date de retour
+  const handleEndDateChange = (range: DateRange | undefined) => {
+    if (!range) return;
+
+    // En mode range, on peut avoir soit from, soit from + to
+    const newTo = range.to || range.from;
+    if (!newTo) return;
+
+    // Met à jour la date de retour
+    setValue("dateRange", { from: dateRange?.from, to: newTo });
+
+    // Ferme le calendrier et ouvre le sélecteur d'heure si la plage est complète
+    if (range.to) {
+      setOpenEndCalendar(false);
+      setTimeout(() => endTimeRef.current?.click(), 100);
     }
   };
 
@@ -134,39 +155,10 @@ export const useSearchForm = (agencies: Agency[]) => {
     return !hasAvailableSlots;
   }, [timeSlots]);
 
-  // Auto-focus on time select when dates are selected
-  useEffect(() => {
-    const currentStartDate = dateRange?.from;
-    const currentEndDate = dateRange?.to;
-    const previousStartDate = previousStartDateRef.current;
-    const previousEndDate = previousEndDateRef.current;
-
-    // Check if dates changed
-    const startDateChanged =
-      currentStartDate?.getTime() !== previousStartDate?.getTime();
-    const endDateChanged =
-      currentEndDate?.getTime() !== previousEndDate?.getTime();
-
-    // Handle start date change
-    if (startDateChanged && currentStartDate && openStartCalendar) {
-      setTimeout(() => {
-        setOpenStartCalendar(false);
-        setTimeout(() => startTimeRef.current?.click(), 100);
-      }, 0);
-    }
-
-    // Handle end date change
-    if (endDateChanged && currentEndDate && openEndCalendar) {
-      setTimeout(() => {
-        setOpenEndCalendar(false);
-        setTimeout(() => endTimeRef.current?.click(), 100);
-      }, 0);
-    }
-
-    // Update refs
-    previousStartDateRef.current = currentStartDate;
-    previousEndDateRef.current = currentEndDate;
-  }, [dateRange?.from, dateRange?.to, openStartCalendar, openEndCalendar]);
+  // Filtre les heures de retour pour same-day booking
+  const availableEndTimeSlots = useMemo(() => {
+    return getAvailableEndTimeSlots(dateRange?.from, dateRange?.to, startTime, timeSlots);
+  }, [dateRange?.from, dateRange?.to, startTime, timeSlots]);
 
   // Auto-submit: submitted is true when all required data is present
   const submitted = useMemo(() => {
@@ -218,10 +210,11 @@ export const useSearchForm = (agencies: Agency[]) => {
     const endDateTime = new Date(dateRange.to);
     endDateTime.setHours(endHour, endMinute, 0, 0);
 
+    // Valider la plage de dates/heures (permet same-day si heures correctes)
     if (endDateTime <= startDateTime) {
       return {
         filtered: [] as Vehicle[],
-        error: "La date de retour doit être après la date de départ.",
+        error: "L'heure de retour doit être après l'heure de départ.",
       };
     }
 
@@ -230,9 +223,15 @@ export const useSearchForm = (agencies: Agency[]) => {
       return { filtered: [] as Vehicle[], error: "Agence introuvable." };
     }
 
-    const available = agency.vehicles.filter((v) =>
-      isVehicleAvailable(v, startDateTime, endDateTime)
-    );
+    const available = agency.vehicles.filter((vehicle) => {
+      const bookings = bookingsMap.get(vehicle.id) || [];
+      return isVehicleAvailableWithBookings(
+        vehicle,
+        startDateTime,
+        endDateTime,
+        bookings
+      );
+    });
     return { filtered: available, error: "" };
   }, [
     agencies,
@@ -242,6 +241,7 @@ export const useSearchForm = (agencies: Agency[]) => {
     startTime,
     endTime,
     allVehicles,
+    bookingsMap,
   ]);
 
   return {
@@ -255,6 +255,7 @@ export const useSearchForm = (agencies: Agency[]) => {
     isSubmitting,
     timeSlots,
     availableStartTimeSlots,
+    availableEndTimeSlots,
     isTodayDisabled,
     filtered,
     error,
@@ -265,7 +266,8 @@ export const useSearchForm = (agencies: Agency[]) => {
     setEndTime: (value: string | undefined) => setValue("endTime", value),
     setOpenStartCalendar,
     setOpenEndCalendar,
-    handleDateRangeChange,
+    handleStartDateChange,
+    handleEndDateChange,
     handleSubmit,
   };
 };
