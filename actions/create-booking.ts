@@ -9,6 +9,8 @@ import { headers } from "next/headers";
 interface CreateBookingParams {
   customerData: BookingFormData;
   vehicleId: string;
+  vehicleBrand: string;
+  vehicleModel: string;
   agencyId: string;
   startDate: Date;
   endDate: Date;
@@ -44,7 +46,7 @@ export async function createBookingAction(
   params: CreateBookingParams
 ): Promise<CreateBookingResult> {
   try {
-    const { customerData, vehicleId, agencyId, startDate, endDate, totalPrice } = params;
+    const { customerData, vehicleId, vehicleBrand, vehicleModel, agencyId, startDate, endDate, totalPrice } = params;
 
     // Créer le client Supabase avec service role pour les opérations admin
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -103,7 +105,10 @@ export async function createBookingAction(
       console.log("✅ Nouveau client créé:", customerId);
     }
 
-    // 2. Créer la réservation avec status "pending_payment"
+    // 2. Créer la réservation avec status "pending_payment" et expiration
+    // La réservation expire après 10 minutes si le paiement n'est pas effectué
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
     const { data: booking, error: bookingError } = await supabase
       .from("bookings")
       .insert({
@@ -114,6 +119,7 @@ export async function createBookingAction(
         end_date: endDate.toISOString(),
         total_price: totalPrice,
         status: "pending_payment",
+        expires_at: expiresAt.toISOString(),
       })
       .select()
       .single();
@@ -160,7 +166,7 @@ export async function createBookingAction(
           price_data: {
             currency: "eur",
             product_data: {
-              name: "Location de véhicule",
+              name: `Location ${vehicleBrand} ${vehicleModel}`,
               description: `Réservation du ${format(startDate, "dd/MM/yyyy")} au ${format(endDate, "dd/MM/yyyy")}`,
             },
             unit_amount: Math.round(totalPrice * 100), // Convertir en centimes
