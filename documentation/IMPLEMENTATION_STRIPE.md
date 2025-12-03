@@ -243,9 +243,40 @@ Copiez le webhook secret affiché dans `.env.local`.
    - Chaque session Stripe contient : `bookingId`, `paymentId`, `customerId`
    - Ces métadonnées sont utilisées par le webhook pour mettre à jour les bonnes entrées
 
+## 📧 Envoi d'emails (Resend + React Email)
+
+### Emails envoyés automatiquement
+
+Lors d'un paiement réussi (webhook `checkout.session.completed`), **2 emails** sont envoyés :
+
+1. **Email de confirmation au client** :
+   - Template : `emails/BookingPaidClientEmail.tsx`
+   - Destinataire : Email du client
+   - Contenu : Confirmation du paiement, détails de réservation, prochaines étapes
+
+2. **Email de notification à l'administrateur** :
+   - Template : `emails/BookingPaidAdminEmail.tsx`
+   - Destinataire : Email configuré dans `ADMIN_EMAIL`
+   - Contenu : Nouvelle réservation, informations client, actions à prendre
+
+### Configuration
+
+Voir [RESEND_SETUP.md](RESEND_SETUP.md) pour :
+- Configuration de la clé API Resend
+- Vérification du domaine
+- Configuration de l'email administrateur
+- Tests et dépannage
+
+### Variables d'environnement requises
+
+```env
+RESEND_API_KEY=re_...
+ADMIN_EMAIL=admin@get-easy.vercel.app
+```
+
 ## 🎯 Prochaines étapes (optionnelles)
 
-- [ ] Envoyer un email de confirmation après paiement réussi
+- [x] Envoyer un email de confirmation après paiement réussi
 - [ ] Ajouter une page "Mes réservations" pour les utilisateurs
 - [ ] Implémenter un système de gestion admin des réservations
 - [ ] Ajouter des notifications push/SMS
