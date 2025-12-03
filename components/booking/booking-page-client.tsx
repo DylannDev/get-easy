@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { Vehicle } from "@/types";
+import type { VehicleBooking } from "@/actions/get-vehicle-bookings";
 import { VehicleInfo } from "./vehicle-info";
 import { BookingSummary } from "./booking-summary";
 import { BookingForm } from "./booking-form";
@@ -12,6 +13,7 @@ interface BookingPageClientProps {
   agencyId: string;
   startDate: Date;
   endDate: Date;
+  bookings: VehicleBooking[];
 }
 
 const BOOKING_STEPS: TimelineStep[] = [
@@ -26,6 +28,7 @@ export const BookingPageClient = ({
   agencyId,
   startDate,
   endDate,
+  bookings,
 }: BookingPageClientProps) => {
   const [currentStep, setCurrentStep] = useState(1); // Démarre à l'étape 1 (Conditions et récapitulatif)
   const [showForm, setShowForm] = useState(false);
@@ -94,6 +97,7 @@ export const BookingPageClient = ({
             endDate={endDate}
             currentStep={currentStep}
             onProceedToForm={handleProceedToForm}
+            bookings={bookings}
           />
         </div>
       </div>

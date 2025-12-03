@@ -60,17 +60,33 @@ export const BookingForm = ({
     formState: { errors, isSubmitting },
   } = useForm<BookingFormData>({
     resolver: zodResolver(bookingFormSchema),
+    // defaultValues: {
+    //   firstName: "",
+    //   lastName: "",
+    //   email: "",
+    //   phone: "",
+    //   birthDate: "",
+    //   birthPlace: "",
+    //   address: "",
+    //   address2: "",
+    //   postalCode: "",
+    //   city: "",
+    //   country: "FR",
+    //   driverLicenseNumber: "",
+    //   driverLicenseIssuedAt: "",
+    //   driverLicenseCountry: "FR",
+    // },
     defaultValues: {
-      firstName: "",
-      lastName: "",
-      email: "",
-      phone: "",
-      birthDate: "",
-      birthPlace: "",
-      address: "",
+      firstName: "dylann",
+      lastName: "xavero",
+      email: "dylann.xavero@gmail.com",
+      phone: "+33666666666",
+      birthDate: "01/01/2000",
+      birthPlace: "Cayenne",
+      address: "123 Rue de la Paix",
       address2: "",
-      postalCode: "",
-      city: "",
+      postalCode: "97300",
+      city: "Cayenne",
       country: "FR",
       driverLicenseNumber: "",
       driverLicenseIssuedAt: "",
@@ -86,6 +102,8 @@ export const BookingForm = ({
       const result = await createBookingAction({
         customerData: data,
         vehicleId: vehicle.id,
+        vehicleBrand: vehicle.brand,
+        vehicleModel: vehicle.model,
         agencyId,
         startDate,
         endDate,
@@ -219,6 +237,7 @@ export const BookingForm = ({
                   type="text"
                   placeholder="JJ/MM/AAAA"
                   maxLength={10}
+                  required
                   value={field.value}
                   onChange={(e) => handleDateInputChange(e, field.onChange)}
                   onKeyDown={(e) => handleDateKeyDown(e, field.onChange)}
