@@ -3,6 +3,7 @@ import { validateDates } from "@/lib/utils";
 import { BookingPageClient } from "@/components/booking/booking-page-client";
 import { getVehicleById } from "@/lib/supabase/queries";
 import { mapVehicleFromDB } from "@/lib/supabase/mappers";
+import { getVehicleBookings } from "@/actions/get-vehicle-bookings";
 
 interface BookingPageProps {
   params: Promise<{ vehicleId: string }>;
@@ -55,6 +56,9 @@ export default async function BookingPage({
   // Récupérer l'agencyId depuis le véhicule DB
   const agencyId = dbVehicle.agency_id;
 
+  // Récupérer les bookings du véhicule
+  const bookings = await getVehicleBookings(vehicleId);
+
   // Parse dates from URL or use defaults
   let startDate: Date;
   let endDate: Date;
@@ -94,6 +98,7 @@ export default async function BookingPage({
           agencyId={agencyId}
           startDate={startDate}
           endDate={endDate}
+          bookings={bookings}
         />
       </div>
     </main>
