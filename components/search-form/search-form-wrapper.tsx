@@ -1,6 +1,7 @@
 import { SearchForm } from "./search-form";
 import { getAllAgencies } from "@/lib/supabase/queries";
 import { mapVehicleFromDB } from "@/lib/supabase/mappers";
+import { getMultipleVehiclesBookings } from "@/actions/get-vehicle-bookings";
 import type { Agency } from "@/types";
 
 // Mapping des URLs d'images (temporaire, à remplacer par les vraies images)
@@ -40,5 +41,10 @@ export async function SearchFormWrapper() {
     })
   );
 
-  return <SearchForm agencies={agencies} />;
+  // Récupérer tous les bookings pour tous les véhicules
+  const allVehicles = agencies.flatMap((agency) => agency.vehicles);
+  const vehicleIds = allVehicles.map((v) => v.id);
+  const bookingsMap = await getMultipleVehiclesBookings(vehicleIds);
+
+  return <SearchForm agencies={agencies} bookingsMap={bookingsMap} />;
 }

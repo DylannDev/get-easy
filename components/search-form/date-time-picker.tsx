@@ -33,6 +33,7 @@ interface DateTimePickerProps {
   disabledDates?: (date: Date) => boolean;
   showBorder?: boolean;
   calendarMode?: "range" | "single";
+  timePickerClassName?: string;
 }
 
 export const DateTimePicker = forwardRef<
@@ -54,6 +55,7 @@ export const DateTimePicker = forwardRef<
       disabledDates,
       showBorder = false,
       calendarMode = "range",
+      timePickerClassName,
     },
     ref
   ) => {
@@ -130,7 +132,7 @@ export const DateTimePicker = forwardRef<
         </div>
 
         {/* Time Picker */}
-        <div className="flex-1 max-w-[100px]">
+        <div className={cn("flex-1", timePickerClassName)}>
           <label className="block text-xs text-gray font-medium mb-1.5 sr-only">
             {label}
           </label>

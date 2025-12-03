@@ -7,12 +7,14 @@ import { VehicleResults } from "@/components/search-form/vehicle-results";
 import { useSearchForm } from "@/hooks/use-search-form";
 import Image from "next/image";
 import type { Agency } from "@/types";
+import type { VehicleBooking } from "@/actions/get-vehicle-bookings";
 
 interface SearchFormProps {
   agencies: Agency[];
+  bookingsMap: Map<string, VehicleBooking[]>;
 }
 
-export const SearchForm = ({ agencies }: SearchFormProps) => {
+export const SearchForm = ({ agencies, bookingsMap }: SearchFormProps) => {
   const {
     agencyId,
     dateRange,
@@ -22,8 +24,8 @@ export const SearchForm = ({ agencies }: SearchFormProps) => {
     openStartCalendar,
     openEndCalendar,
     isSubmitting,
-    timeSlots,
     availableStartTimeSlots,
+    availableEndTimeSlots,
     isTodayDisabled,
     filtered,
     error,
@@ -34,9 +36,10 @@ export const SearchForm = ({ agencies }: SearchFormProps) => {
     setEndTime,
     setOpenStartCalendar,
     setOpenEndCalendar,
-    handleDateRangeChange,
+    handleStartDateChange,
+    handleEndDateChange,
     handleSubmit,
-  } = useSearchForm(agencies);
+  } = useSearchForm({ agencies, bookingsMap });
 
   // Function to disable dates in the start date picker
   const isStartDateDisabled = (date: Date) => {
@@ -76,7 +79,10 @@ export const SearchForm = ({ agencies }: SearchFormProps) => {
             </h2>
           </div>
 
-          <form onSubmit={handleSubmit(async () => {})} className=" rounded-xl bg-white p-3">
+          <form
+            onSubmit={handleSubmit(async () => {})}
+            className=" rounded-xl bg-white p-3"
+          >
             <div className="flex items-end">
               <div className="flex-1 flex items-center gap-3 divide-x divide-gray/30">
                 {/* Agency Selection */}
@@ -90,7 +96,7 @@ export const SearchForm = ({ agencies }: SearchFormProps) => {
                 <DateTimePicker
                   label="Date de départ"
                   dateRange={dateRange}
-                  onDateRangeChange={handleDateRangeChange}
+                  onDateRangeChange={handleStartDateChange}
                   selectedTime={startTime}
                   onTimeChange={setStartTime}
                   timeSlots={availableStartTimeSlots}
@@ -99,20 +105,24 @@ export const SearchForm = ({ agencies }: SearchFormProps) => {
                   onOpenCalendarChange={setOpenStartCalendar}
                   timeRef={startTimeRef}
                   disabledDates={isStartDateDisabled}
+                  calendarMode="single"
+                  timePickerClassName="max-w-[100px]"
                 />
 
                 {/* End Date & Time */}
                 <DateTimePicker
                   label="Date de retour"
                   dateRange={dateRange}
-                  onDateRangeChange={handleDateRangeChange}
+                  onDateRangeChange={handleEndDateChange}
                   selectedTime={endTime}
                   onTimeChange={setEndTime}
-                  timeSlots={timeSlots}
+                  timeSlots={availableEndTimeSlots}
                   dateValue={dateRange?.to}
                   openCalendar={openEndCalendar}
                   onOpenCalendarChange={setOpenEndCalendar}
                   timeRef={endTimeRef}
+                  calendarMode="range"
+                  timePickerClassName="max-w-[100px]"
                 />
               </div>
 
