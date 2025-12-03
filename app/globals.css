@@ -181,7 +181,3 @@
   color: black;
   padding: 0.375rem 0.5rem;
 }
-
-/* On ne peut pas vraiment styler le dropdown natif comme Radix UI SelectContent
-   car c'est un élément natif du navigateur. Pour une vraie uniformité,
-   il faudrait créer un composant custom avec Radix UI Select */
