@@ -1,35 +1,32 @@
 "use client";
 
 import type { Vehicle } from "@/types";
-import type { VehicleBooking } from "@/actions/get-vehicle-bookings";
 import { Button } from "@/components/ui/button";
 import { DateTimePicker } from "@/components/search-form/date-time-picker";
 import { LoadingSpinner } from "@/components/loading-spinner";
-import { useBookingSummary } from "@/hooks/use-booking-summary";
 import { getPricePerDay } from "@/lib/utils";
 
 interface BookingSummaryProps {
   vehicle: Vehicle;
-  startDate: Date;
-  endDate: Date;
   currentStep?: number;
   onProceedToForm?: () => void;
-  bookings?: VehicleBooking[];
+  bookingSummaryData: ReturnType<
+    typeof import("@/hooks/use-booking-summary").useBookingSummary
+  >;
 }
 
 export const BookingSummary = ({
   vehicle,
-  startDate,
-  endDate,
   currentStep = 1,
   onProceedToForm,
-  bookings,
+  bookingSummaryData,
 }: BookingSummaryProps) => {
+  // Utiliser les données du hook partagé au niveau du parent
   const {
     dateRange,
     startTime,
     endTime,
-    timeSlots,
+    availableStartTimeSlots,
     availableEndTimeSlots,
     openStartCalendar,
     openEndCalendar,
@@ -43,7 +40,10 @@ export const BookingSummary = ({
     handleEndDateChange,
     isDateBlocked,
     isEndDateDisabled,
-  } = useBookingSummary({ vehicle, startDate, endDate, bookings });
+  } = bookingSummaryData;
+
+  // Validation des dates : les deux dates doivent être définies
+  const areDatesValid = dateRange?.from && dateRange?.to;
 
   // Calcul du tarif applicable en fonction du nombre de jours
   const applicablePricePerDay =
@@ -69,7 +69,7 @@ export const BookingSummary = ({
           onDateRangeChange={handleStartDateChange}
           selectedTime={startTime}
           onTimeChange={setStartTime}
-          timeSlots={timeSlots}
+          timeSlots={availableStartTimeSlots}
           dateValue={dateRange?.from}
           openCalendar={openStartCalendar}
           onOpenCalendarChange={setOpenStartCalendar}
@@ -158,7 +158,7 @@ export const BookingSummary = ({
       {/* CTA Button avec spinner pendant l'étape 2 */}
       <Button
         className="w-full mt-6"
-        disabled={currentStep === 2}
+        disabled={currentStep === 2 || !areDatesValid}
         type="button"
         onClick={onProceedToForm}
       >

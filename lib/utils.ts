@@ -267,6 +267,64 @@ export function validateSameDayBookingTime(
 }
 
 /**
+ * Filtre les créneaux horaires de départ en fonction de la date sélectionnée
+ * Si la date sélectionnée est aujourd'hui, filtre les heures déjà passées
+ * Sinon, retourne tous les créneaux disponibles
+ *
+ * @param selectedDate - Date de départ sélectionnée
+ * @param timeSlots - Tous les créneaux horaires disponibles
+ * @returns Créneaux horaires filtrés
+ */
+export function getAvailableStartTimeSlots(
+  selectedDate: Date | undefined,
+  timeSlots: string[]
+): string[] {
+  if (!selectedDate) return timeSlots;
+
+  const normalizedSelectedDate = new Date(selectedDate);
+  normalizedSelectedDate.setHours(0, 0, 0, 0);
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // Si la date sélectionnée n'est pas aujourd'hui, tous les créneaux sont disponibles
+  if (normalizedSelectedDate.getTime() !== today.getTime()) {
+    return timeSlots;
+  }
+
+  // Si c'est aujourd'hui, filtrer les heures passées
+  const now = new Date();
+  const currentHours = now.getHours();
+  const currentMinutes = now.getMinutes();
+
+  return timeSlots.filter((timeSlot) => {
+    const [hours, minutes] = timeSlot.split(":").map(Number);
+    return hours > currentHours || (hours === currentHours && minutes > currentMinutes);
+  });
+}
+
+/**
+ * Détermine si la date du jour doit être désactivée dans le calendrier
+ * Elle est désactivée si aucun créneau horaire n'est disponible aujourd'hui
+ *
+ * @param timeSlots - Tous les créneaux horaires disponibles
+ * @returns true si la date du jour doit être désactivée
+ */
+export function isTodayDisabledForBooking(timeSlots: string[]): boolean {
+  const now = new Date();
+  const currentHours = now.getHours();
+  const currentMinutes = now.getMinutes();
+
+  // Vérifier s'il existe au moins un créneau disponible aujourd'hui
+  const hasAvailableSlots = timeSlots.some((timeSlot) => {
+    const [hours, minutes] = timeSlot.split(":").map(Number);
+    return hours > currentHours || (hours === currentHours && minutes > currentMinutes);
+  });
+
+  return !hasAvailableSlots;
+}
+
+/**
  * Filtre les créneaux horaires disponibles pour le retour en cas de same-day booking
  * Retourne tous les créneaux si ce n'est pas un same-day booking
  * Retourne uniquement les créneaux > heure de départ si c'est un same-day booking
@@ -331,4 +389,28 @@ export function isBookingStillValid(booking: BookingWithExpiration): boolean {
 
   // Autres statuts (cancelled, expired, etc.) = non valide
   return false;
+}
+
+/**
+ * Ajoute un paramètre de cache-busting à une URL d'image
+ * Pour forcer le rafraîchissement du cache navigateur
+ * N'ajoute le paramètre que pour les URLs externes (Supabase), pas les images locales
+ *
+ * @param imageUrl - URL de l'image
+ * @param version - Version optionnelle (par défaut: date du jour au format YYYYMMDD)
+ * @returns URL avec paramètre de cache-busting
+ */
+export function addImageCacheBusting(imageUrl: string, version?: string): string {
+  if (!imageUrl) return imageUrl;
+
+  // Ne pas ajouter de cache-busting pour les images locales (commençant par /)
+  if (imageUrl.startsWith('/')) return imageUrl;
+
+  // Utiliser la date du jour comme version par défaut
+  const defaultVersion = version || new Date().toISOString().split('T')[0].replace(/-/g, '');
+
+  // Vérifier si l'URL contient déjà des paramètres
+  const separator = imageUrl.includes('?') ? '&' : '?';
+
+  return `${imageUrl}${separator}v=${defaultVersion}`;
 }

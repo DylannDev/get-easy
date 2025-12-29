@@ -1,14 +1,22 @@
 import Image from "next/image";
 import Link from "next/link";
 
-export const Logo = () => {
+interface LogoProps {
+  variant?: "default" | "white";
+  width?: number;
+  height?: number;
+}
+
+export const Logo = ({ variant = "default", width = 120, height = 30 }: LogoProps) => {
+  const logoSrc = variant === "white" ? "/logo-white.svg" : "/logo.svg";
+
   return (
     <Link href="/" className="flex items-center">
       <Image
-        src="/logo.svg"
+        src={logoSrc}
         alt="Get Easy logo"
-        width={120}
-        height={30}
+        width={width}
+        height={height}
         className="object-cover"
       />
     </Link>

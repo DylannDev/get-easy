@@ -99,8 +99,25 @@ export const bookingFormSchema = z
           return !isFuture(date);
         },
         { message: "La date d'obtention ne peut pas être dans le futur" }
+      )
+      .refine(
+        (val) => {
+          if (!val) return true;
+          const date = parseFrenchDate(val);
+          if (!date) return false;
+          const yearsSinceLicense = differenceInYears(new Date(), date);
+          return yearsSinceLicense >= 3;
+        },
+        { message: "Le permis de conduire doit avoir été obtenu depuis au moins 3 ans" }
       ),
     driverLicenseCountry: z.string().optional(),
+
+    // Section 4 - Acceptation des conditions
+    acceptTerms: z
+      .boolean()
+      .refine((val) => val === true, {
+        message: "Vous devez accepter les conditions générales de location",
+      }),
   })
   .refine(
     (data) => {

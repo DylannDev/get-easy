@@ -1,10 +1,10 @@
 import type { Vehicle } from "@/types";
 
 export interface Booking {
+  id?: string; // Optionnel pour compatibilité avec VehicleBooking
   start_date: string;
   end_date: string;
   status: string;
-  expires_at?: string | null;
 }
 
 /**
@@ -55,25 +55,12 @@ export function isVehicleAvailableWithBookings(
   if (hasBlockedOverlap) return false;
 
   // 2. Vérifie les réservations existantes (bookings)
-  // On ne prend en compte que les réservations qui sont payées OU pending_payment non-expirées
+  // On ne prend en compte que les réservations qui sont payées OU pending_payment
+  // Note: Les bookings pending_payment expirés sont automatiquement mis à jour par le cron job
   const hasBookingOverlap = bookings.some((booking) => {
-    // Ignore les réservations annulées, échouées, remboursées ou expirées
+    // Ignore les réservations qui ne sont pas paid ou pending_payment
     if (!["pending_payment", "paid"].includes(booking.status)) {
       return false;
-    }
-
-    // Pour les pending_payment, vérifie si la réservation est expirée
-    if (booking.status === "pending_payment") {
-      if (!booking.expires_at) {
-        // Si pas d'expires_at, on considère la réservation comme expirée (sécurité)
-        return false;
-      }
-      const expiresAt = new Date(booking.expires_at);
-      const now = new Date();
-      if (expiresAt <= now) {
-        // La réservation est expirée, elle ne bloque plus les dates
-        return false;
-      }
     }
 
     let bookingStart = new Date(booking.start_date);
@@ -101,16 +88,48 @@ export function isVehicleAvailableWithBookings(
 }
 
 /**
+ * Filtre un tableau de bookings en excluant celui dont l'ID correspond au currentBookingId
+ * Utile pour permettre à l'utilisateur de modifier ses propres réservations sans être bloqué
+ *
+ * IMPORTANT: Un booking avec status="paid" n'est JAMAIS exclu, même s'il correspond au currentBookingId
+ * Car une réservation payée ne peut plus être modifiée et doit toujours bloquer les dates
+ *
+ * @param bookings - Liste des réservations
+ * @param excludeBookingId - ID du booking à exclure (optionnel)
+ * @returns Liste des bookings filtrée
+ */
+export function filterOutCurrentBooking(
+  bookings: Booking[],
+  excludeBookingId?: string | null
+): Booking[] {
+  if (!excludeBookingId) {
+    return bookings;
+  }
+
+  return bookings.filter((booking) => {
+    // SÉCURITÉ: Ne JAMAIS exclure un booking "paid", même si c'est le booking courant
+    if (booking.status === "paid") {
+      return true; // Toujours garder les bookings payés
+    }
+
+    // Pour les autres status, exclure si c'est le booking courant
+    return booking.id !== excludeBookingId;
+  });
+}
+
+/**
  * Retourne les dates qui sont bloquées pour un véhicule donné
  * (combinaison de blocked_periods et bookings actifs)
  *
  * @param vehicle - Le véhicule
  * @param bookings - Liste des réservations existantes pour ce véhicule
+ * @param excludeBookingId - ID du booking à exclure (optionnel, pour ignorer le booking courant)
  * @returns Tableau de dates bloquées au format Date
  */
 export function getBlockedDatesForVehicle(
   vehicle: Vehicle,
-  bookings: Booking[] = []
+  bookings: Booking[] = [],
+  excludeBookingId?: string | null
 ): Date[] {
   const blockedDates: Date[] = [];
 
@@ -129,22 +148,14 @@ export function getBlockedDatesForVehicle(
     }
   });
 
-  // 2. Ajouter les dates des bookings actifs (payés OU pending_payment non-expirés)
-  bookings.forEach((booking) => {
+  // 2. Filtrer les bookings pour exclure le booking courant
+  const filteredBookings = filterOutCurrentBooking(bookings, excludeBookingId);
+
+  // 3. Ajouter les dates des bookings actifs (payés OU pending_payment)
+  // Note: Les bookings pending_payment expirés sont automatiquement mis à jour par le cron job
+  filteredBookings.forEach((booking) => {
     if (!["pending_payment", "paid"].includes(booking.status)) {
       return;
-    }
-
-    // Pour les pending_payment, vérifie si la réservation est expirée
-    if (booking.status === "pending_payment") {
-      if (!booking.expires_at) {
-        return; // Pas d'expires_at = considéré comme expiré
-      }
-      const expiresAt = new Date(booking.expires_at);
-      const now = new Date();
-      if (expiresAt <= now) {
-        return; // Réservation expirée, ne bloque pas les dates
-      }
     }
 
     const start = new Date(booking.start_date);
@@ -190,28 +201,17 @@ export function isVehicleAvailableExcludingBooking(
 
   // Filtre les bookings à vérifier :
   // - Exclure le booking en cours de paiement
-  // - Ne garder que paid OU pending_payment non-expirés
+  // - Ne garder que paid OU pending_payment
+  // Note: Les bookings pending_payment expirés sont automatiquement mis à jour par le cron job
   const relevantBookings = allBookings.filter((booking) => {
     // Exclure le booking courant
-    if ((booking as any).id === excludeBookingId) {
+    if (booking.id === excludeBookingId) {
       return false;
     }
 
     // Ne garder que paid ou pending_payment
     if (!["pending_payment", "paid"].includes(booking.status)) {
       return false;
-    }
-
-    // Pour pending_payment, vérifier l'expiration
-    if (booking.status === "pending_payment") {
-      if (!booking.expires_at) {
-        return false; // Pas d'expires_at = considéré comme expiré
-      }
-      const expiresAt = new Date(booking.expires_at);
-      const now = new Date();
-      if (expiresAt <= now) {
-        return false; // Expiré
-      }
     }
 
     return true;

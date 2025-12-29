@@ -10,6 +10,7 @@ import {
   PiCarDuotone,
 } from "react-icons/pi";
 import { Card, CardTitle, CardContent } from "@/components/ui/card";
+import { addImageCacheBusting } from "@/lib/utils";
 
 interface VehicleInfoProps {
   vehicle: Vehicle;
@@ -19,13 +20,16 @@ export const VehicleInfo = ({ vehicle }: VehicleInfoProps) => {
   return (
     <div className="space-y-6">
       {/* Vehicle Image */}
-      <div className="relative aspect-video w-full overflow-hidden rounded-xl border border-gray-300">
-        <Image
-          src={"/vehicles/clio-grise.png"}
-          alt={`${vehicle.brand} ${vehicle.model}`}
-          fill
-          className="object-cover"
-        />
+      <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-white border border-gray-300 flex items-center justify-center">
+        <div className="relative h-full w-full sm:w-[70%] sm:h-[70%]">
+          <Image
+            src={addImageCacheBusting(vehicle.img)}
+            alt={`${vehicle.brand} ${vehicle.model}`}
+            fill
+            className="object-cover rounded-xl"
+            priority
+          />
+        </div>
       </div>
 
       {/* Vehicle Title */}
@@ -57,7 +61,7 @@ export const VehicleInfo = ({ vehicle }: VehicleInfoProps) => {
 
             <DetailItem
               icon={PiCalendarDuotone}
-              value={"Année " + vehicle.year.toString()}
+              value={vehicle.year.toString()}
             />
             <DetailItem
               icon={PiCarDuotone}
@@ -77,11 +81,11 @@ export const VehicleInfo = ({ vehicle }: VehicleInfoProps) => {
               label="Kilomètres inclus par jour"
               value="Illimité"
             />
-            <ConditionItem label="Franchise" value="1 000,00 €" />
+
             <ConditionItem label="Assurance incluse" value="Tout risque" />
             <ConditionItem label="Âge minimum" value="21 ans" />
-            <ConditionItem label="Permis" value="B / B1 (2 ans minimum)" />
-            <ConditionItem label="Caution" value="1 200,00 €" />
+            <ConditionItem label="Permis" value="B / B1 (3 ans minimum)" />
+            <ConditionItem label="Caution" value="1 000,00 €" />
           </div>
         </CardContent>
       </Card>
@@ -96,11 +100,13 @@ const DetailItem = ({
   icon: React.ComponentType<{ className?: string }>;
   value: string;
 }) => (
-  <div className="flex items-center gap-2">
+  <div className="flex flex-col min-[490px]:flex-row items-center gap-2">
     <div className="bg-black rounded-lg p-2">
       <Icon className="size-5 text-green" />
     </div>
-    <span className="text-base text-gray-600 capitalize">{value}</span>
+    <span className="text-sm sm:text-base text-gray-600 capitalize">
+      {value}
+    </span>
   </div>
 );
 

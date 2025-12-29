@@ -4,12 +4,6 @@ import { mapVehicleFromDB } from "@/lib/supabase/mappers";
 import { getMultipleVehiclesBookings } from "@/actions/get-vehicle-bookings";
 import type { Agency } from "@/types";
 
-// Mapping des URLs d'images (temporaire, à remplacer par les vraies images)
-const VEHICLE_IMAGE_URLS: Record<string, string> = {
-  // Les IDs seront générés par Supabase, donc on utilisera l'image par défaut
-  default: "/vehicles/clio-grise.png",
-};
-
 export async function SearchFormWrapper() {
   // Récupérer toutes les agences depuis Supabase
   const dbAgencies = await getAllAgencies();
@@ -31,12 +25,7 @@ export async function SearchFormWrapper() {
           closeTime: dbAgency.close_time,
           interval: dbAgency.interval,
         },
-        vehicles: vehicles.map((v) =>
-          mapVehicleFromDB(
-            v,
-            VEHICLE_IMAGE_URLS[v.id] || VEHICLE_IMAGE_URLS.default
-          )
-        ),
+        vehicles: vehicles.map((v) => mapVehicleFromDB(v)),
       };
     })
   );

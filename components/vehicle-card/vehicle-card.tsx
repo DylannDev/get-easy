@@ -12,7 +12,7 @@ import {
   PiInfoDuotone,
 } from "react-icons/pi";
 import { VehicleDetail } from "./vehicle-detail";
-import { calculateTotalPrice } from "@/lib/utils";
+import { calculateTotalPrice, addImageCacheBusting } from "@/lib/utils";
 import {
   Popover,
   PopoverContent,
@@ -61,7 +61,7 @@ export const VehicleCard = ({
     : vehicle.pricePerDay;
 
   return (
-    <article className="relative flex flex-col justify-between rounded-xl border border-gray-300 bg-white p-6 cursor-pointer overflow-hidden">
+    <article className="relative flex flex-col justify-between rounded-xl border border-gray-300 bg-white px-6 py-8 cursor-pointer overflow-hidden">
       {/* Badge disponibilité */}
       {showBadge && (
         <div className="absolute top-0 right-0 bg-green text-black text-xs font-semibold px-2 py-1 rounded-bl-md z-10">
@@ -99,13 +99,12 @@ export const VehicleCard = ({
             <div className="relative z-10" data-popover-trigger>
               <Popover>
                 <PopoverTrigger asChild>
-                  <button
-                    type="button"
+                  <div
                     className="text-black hover:text-green transition-colors p-2 cursor-pointer"
                     aria-label="Voir les tarifs par durée"
                   >
                     <PiInfoDuotone className="size-5" />
-                  </button>
+                  </div>
                 </PopoverTrigger>
                 <PopoverContent className="w-56 border border-gray-300">
                   <div className="space-y-2">
@@ -134,17 +133,17 @@ export const VehicleCard = ({
         </div>
 
         {/* Vehicle Image */}
-        <div className="relative aspect-square w-full h-full max-h-60 overflow-hidden rounded-xl">
+        <div className="relative aspect-video w-full h-full overflow-hidden rounded-xl">
           <Image
-            src={vehicle.img}
+            src={addImageCacheBusting(vehicle.img)}
             alt={`${vehicle.brand} ${vehicle.model}`}
             fill
-            className="object-cover"
+            className="object-cover md:scale-110"
           />
         </div>
 
         {/* Vehicle details */}
-        <div className="flex justify-between gap-2 text-sm text-gray-600  capitalize">
+        <div className="flex justify-between gap-2 text-sm text-gray-600 capitalize">
           <VehicleDetail
             icon={PiUsersDuotone}
             label={`${vehicle.numberOfSeats} places`}

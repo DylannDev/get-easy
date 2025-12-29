@@ -3,17 +3,23 @@ import { toast } from "sonner";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { DateRange } from "react-day-picker";
 import type { Vehicle } from "@/types";
+import type { Database } from "@/lib/supabase/database.types";
 import {
   generateTimeSlots,
   calculateTotalPrice,
   formatDateTimeFR,
   getAvailableEndTimeSlots,
+  getAvailableStartTimeSlots,
+  isTodayDisabledForBooking,
 } from "@/lib/utils";
 import { getBlockedDatesForVehicle } from "@/lib/availability";
 import type { VehicleBooking } from "@/actions/get-vehicle-bookings";
 
+type Agency = Database["public"]["Tables"]["agencies"]["Row"];
+
 interface UseBookingSummaryProps {
   vehicle: Vehicle;
+  agency: Agency;
   startDate: Date;
   endDate: Date;
   bookings?: VehicleBooking[];
@@ -21,6 +27,7 @@ interface UseBookingSummaryProps {
 
 export const useBookingSummary = ({
   vehicle,
+  agency,
   startDate,
   endDate,
   bookings = [],
@@ -28,36 +35,82 @@ export const useBookingSummary = ({
   const router = useRouter();
   const searchParams = useSearchParams();
 
+  // Récupérer le bookingId depuis l'URL pour ignorer ce booking dans les vérifications
+  const currentBookingId = searchParams.get("bookingId");
+
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: startDate,
     to: endDate,
   });
 
-  const [startTime, setStartTime] = useState(
-    `${startDate.getHours().toString().padStart(2, "0")}:${startDate
-      .getMinutes()
-      .toString()
-      .padStart(2, "0")}`
-  );
+  // Génère les créneaux horaires depuis les horaires de l'agence
+  const timeSlots = useMemo(() => {
+    return generateTimeSlots({
+      openTime: agency.open_time,
+      closeTime: agency.close_time,
+      interval: agency.interval,
+    });
+  }, [agency.open_time, agency.close_time, agency.interval]);
 
-  const [endTime, setEndTime] = useState(
-    `${endDate.getHours().toString().padStart(2, "0")}:${endDate
+  // Fonction pour trouver l'heure valide la plus proche ou la première disponible
+  const findValidTimeSlot = (targetTime: string, slots: string[]): string => {
+    if (slots.length === 0) return "08:00"; // Fallback de sécurité
+
+    // Si l'heure cible est dans les slots, on la garde
+    if (slots.includes(targetTime)) {
+      return targetTime;
+    }
+
+    // Sinon, chercher l'heure la plus proche
+    const [targetHour, targetMinute] = targetTime.split(":").map(Number);
+    const targetMinutes = targetHour * 60 + targetMinute;
+
+    let closestSlot = slots[0];
+    let minDiff = Infinity;
+
+    for (const slot of slots) {
+      const [slotHour, slotMinute] = slot.split(":").map(Number);
+      const slotMinutes = slotHour * 60 + slotMinute;
+      const diff = Math.abs(slotMinutes - targetMinutes);
+
+      if (diff < minDiff) {
+        minDiff = diff;
+        closestSlot = slot;
+      }
+    }
+
+    return closestSlot;
+  };
+
+  const [startTime, setStartTime] = useState(() => {
+    const targetTime = `${startDate.getHours().toString().padStart(2, "0")}:${startDate
       .getMinutes()
       .toString()
-      .padStart(2, "0")}`
-  );
+      .padStart(2, "0")}`;
+    return findValidTimeSlot(targetTime, timeSlots);
+  });
+
+  const [endTime, setEndTime] = useState(() => {
+    const targetTime = `${endDate.getHours().toString().padStart(2, "0")}:${endDate
+      .getMinutes()
+      .toString()
+      .padStart(2, "0")}`;
+    return findValidTimeSlot(targetTime, timeSlots);
+  });
 
   const [openStartCalendar, setOpenStartCalendar] = useState(false);
   const [openEndCalendar, setOpenEndCalendar] = useState(false);
 
-  // Génère les créneaux horaires (8:00 - 19:00 par défaut)
-  const timeSlots = useMemo(() => {
-    return generateTimeSlots({
-      openTime: "08:00",
-      closeTime: "19:00",
-      interval: 30,
-    });
-  }, []);
+  // Filtre les heures de départ en fonction de la date sélectionnée
+  // Si c'est aujourd'hui, on ne montre que les heures futures
+  const availableStartTimeSlots = useMemo(() => {
+    return getAvailableStartTimeSlots(dateRange?.from, timeSlots);
+  }, [dateRange?.from, timeSlots]);
+
+  // Détermine si la date du jour doit être désactivée (aucun créneau disponible)
+  const isTodayDisabled = useMemo(() => {
+    return isTodayDisabledForBooking(timeSlots);
+  }, [timeSlots]);
 
   // Filtre les heures de retour pour same-day booking
   const availableEndTimeSlots = useMemo(() => {
@@ -70,12 +123,14 @@ export const useBookingSummary = ({
   }, [dateRange?.from, dateRange?.to, startTime, timeSlots]);
 
   // Obtenir toutes les dates bloquées (blocked_periods + bookings actifs)
+  // En excluant le booking courant (celui de l'URL) pour permettre à l'utilisateur
+  // de modifier ses dates sans être bloqué par sa propre réservation
   const blockedDates = useMemo(() => {
-    return getBlockedDatesForVehicle(vehicle, bookings);
-  }, [vehicle, bookings]);
+    return getBlockedDatesForVehicle(vehicle, bookings, currentBookingId);
+  }, [vehicle, bookings, currentBookingId]);
 
   // Vérifie si une plage de dates chevauche une période bloquée
-  // Retourne aussi les dates de la période bloquée qui chevauche
+  // Retourne aussi les dates réelles (avec heures) de la période bloquée qui chevauche
   const rangeOverlapsBlockedPeriod = (
     from: Date,
     to: Date
@@ -85,37 +140,88 @@ export const useBookingSummary = ({
     normalizedFrom.setHours(0, 0, 0, 0);
     normalizedTo.setHours(0, 0, 0, 0);
 
-    // Vérifie si au moins une date bloquée se trouve dans la plage
-    const overlappingDates = blockedDates.filter((blockedDate) => {
-      const d = new Date(blockedDate);
-      d.setHours(0, 0, 0, 0);
-      return d >= normalizedFrom && d <= normalizedTo;
-    });
+    // 1. Vérifie les blocked_periods du véhicule
+    for (const blocked of vehicle.blockedPeriods) {
+      let blockedStart = new Date(blocked.start);
+      let blockedEnd = new Date(blocked.end);
 
-    if (overlappingDates.length === 0) {
-      return { overlaps: false };
+      // Corrige les périodes inversées
+      if (blockedStart > blockedEnd) {
+        [blockedStart, blockedEnd] = [blockedEnd, blockedStart];
+      }
+
+      const normalizedBlockedStart = new Date(blockedStart);
+      const normalizedBlockedEnd = new Date(blockedEnd);
+      normalizedBlockedStart.setHours(0, 0, 0, 0);
+      normalizedBlockedEnd.setHours(0, 0, 0, 0);
+
+      // Vérifie le chevauchement
+      if (
+        normalizedFrom <= normalizedBlockedEnd &&
+        normalizedTo >= normalizedBlockedStart
+      ) {
+        return {
+          overlaps: true,
+          blockedStart: blockedStart, // Retourne avec les vraies heures
+          blockedEnd: blockedEnd, // Retourne avec les vraies heures
+        };
+      }
     }
 
-    // Trouve la plage continue de dates bloquées qui chevauche
-    const sortedDates = overlappingDates
-      .map((d) => {
-        const normalized = new Date(d);
-        normalized.setHours(0, 0, 0, 0);
-        return normalized;
-      })
-      .sort((a, b) => a.getTime() - b.getTime());
+    // 2. Vérifie les bookings actifs (paid ou pending_payment)
+    for (const booking of bookings) {
+      if (!["pending_payment", "paid"].includes(booking.status)) {
+        continue;
+      }
 
-    return {
-      overlaps: true,
-      blockedStart: sortedDates[0],
-      blockedEnd: sortedDates[sortedDates.length - 1],
-    };
+      // Ignorer le booking courant (celui de l'URL)
+      // pour permettre à l'utilisateur de modifier ses dates sans être bloqué par sa propre réservation
+      if (currentBookingId && booking.id === currentBookingId) {
+        continue;
+      }
+
+      let bookingStart = new Date(booking.start_date);
+      let bookingEnd = new Date(booking.end_date);
+
+      // Corrige les périodes inversées
+      if (bookingStart > bookingEnd) {
+        [bookingStart, bookingEnd] = [bookingEnd, bookingStart];
+      }
+
+      const normalizedBookingStart = new Date(bookingStart);
+      const normalizedBookingEnd = new Date(bookingEnd);
+      normalizedBookingStart.setHours(0, 0, 0, 0);
+      normalizedBookingEnd.setHours(0, 0, 0, 0);
+
+      // Vérifie le chevauchement
+      if (
+        normalizedFrom <= normalizedBookingEnd &&
+        normalizedTo >= normalizedBookingStart
+      ) {
+        return {
+          overlaps: true,
+          blockedStart: bookingStart, // Retourne avec les vraies heures
+          blockedEnd: bookingEnd, // Retourne avec les vraies heures
+        };
+      }
+    }
+
+    return { overlaps: false };
   };
 
-  // Vérifie si une date est bloquée (prend en compte blocked_periods + bookings)
+  // Vérifie si une date est bloquée (prend en compte blocked_periods + bookings + today si aucun créneau disponible)
   const isDateBlocked = (date: Date): boolean => {
     const d = new Date(date);
     d.setHours(0, 0, 0, 0);
+
+    // Vérifier si c'est aujourd'hui et s'il n'y a aucun créneau disponible
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (d.getTime() === today.getTime() && isTodayDisabled) {
+      return true;
+    }
+
+    // Vérifier les dates bloquées (blocked_periods + bookings)
     return blockedDates.some((blockedDate) => {
       const blocked = new Date(blockedDate);
       blocked.setHours(0, 0, 0, 0);
@@ -204,18 +310,10 @@ export const useBookingSummary = ({
             setOpenEndCalendar(false);
           }
         } else {
-          // Message détaillé avec les dates bloquées (pas les dates sélectionnées)
+          // Message détaillé avec les dates bloquées (avec les vraies heures depuis la BDD)
           if (overlap.blockedStart && overlap.blockedEnd) {
-            // Utilise les heures par défaut (08:00) pour les dates bloquées
-            const blockedStartWithTime = new Date(overlap.blockedStart);
-            blockedStartWithTime.setHours(8, 0, 0, 0);
-
-            const blockedEndWithTime = new Date(overlap.blockedEnd);
-            blockedEndWithTime.setHours(19, 0, 0, 0);
-
-            const formattedBlockedStart =
-              formatDateTimeFR(blockedStartWithTime);
-            const formattedBlockedEnd = formatDateTimeFR(blockedEndWithTime);
+            const formattedBlockedStart = formatDateTimeFR(overlap.blockedStart);
+            const formattedBlockedEnd = formatDateTimeFR(overlap.blockedEnd);
 
             toast.warning(
               `Ce véhicule est déjà réservé du ${formattedBlockedStart} au ${formattedBlockedEnd}. Veuillez sélectionner d'autres dates.`
@@ -295,7 +393,9 @@ export const useBookingSummary = ({
     startTime,
     endTime,
     timeSlots,
+    availableStartTimeSlots,
     availableEndTimeSlots,
+    isTodayDisabled,
     openStartCalendar,
     openEndCalendar,
     numberOfDays,

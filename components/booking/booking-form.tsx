@@ -1,9 +1,11 @@
+/* eslint-disable react/no-unescaped-entities */
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   bookingFormSchema,
   type BookingFormData,
@@ -11,47 +13,72 @@ import {
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
 import { NativeSelect } from "@/components/ui/native-select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowLeft } from "lucide-react";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { getCountriesList } from "@/lib/countries";
-import { cn, calculateTotalPrice } from "@/lib/utils";
+import { cn, formatDateTimeFR } from "@/lib/utils";
 import {
   handleDateInputChange,
   handleDateKeyDown,
 } from "@/lib/format-date-input";
 import { createBookingAction } from "@/actions/create-booking";
+import { checkVehicleAvailability } from "@/actions/check-vehicle-availability";
 import type { Vehicle } from "@/types";
+import type { Database } from "@/lib/supabase/database.types";
 import { toast } from "sonner";
+
+type Agency = Database["public"]["Tables"]["agencies"]["Row"];
 
 interface BookingFormProps {
   onBack: () => void;
   vehicle: Vehicle;
-  agencyId: string;
+  agency: Agency;
   startDate: Date;
   endDate: Date;
+  numberOfDays: number;
+  totalPrice: number;
+  bookingId?: string;
 }
 
 export const BookingForm = ({
   onBack,
   vehicle,
-  agencyId,
+  agency,
   startDate,
   endDate,
+  numberOfDays,
+  totalPrice,
+  bookingId,
 }: BookingFormProps) => {
+  // Extraire agencyId et agencyName depuis l'objet agency
+  const agencyId = agency.id;
+  const agencyName = agency.name;
   const router = useRouter();
-  const countries = getCountriesList();
+
+  // Réorganiser la liste des pays avec une priorité pour les pays locaux
+  const allCountries = getCountriesList();
+  const priorityCountryCodes = ["FR", "GF", "MQ", "GP"]; // France, Guyane, Martinique, Guadeloupe
+
+  const priorityCountries = allCountries.filter((country) =>
+    priorityCountryCodes.includes(country.value)
+  );
+  const otherCountries = allCountries.filter(
+    (country) => !priorityCountryCodes.includes(country.value)
+  );
+
+  // Réordonner les pays prioritaires selon l'ordre défini
+  const orderedPriorityCountries = priorityCountryCodes
+    .map((code) => priorityCountries.find((c) => c.value === code))
+    .filter(Boolean) as typeof priorityCountries;
+
+  const countries = [...orderedPriorityCountries, ...otherCountries];
+
   const [bookingError, setBookingError] = useState<string | null>(null);
 
-  // Calculer le prix total
-  const totalPrice = useMemo(() => {
-    const result = calculateTotalPrice(
-      startDate,
-      endDate,
-      vehicle.pricePerDay,
-      vehicle.pricingTiers
-    );
-    return result.totalPrice;
-  }, [startDate, endDate, vehicle.pricePerDay, vehicle.pricingTiers]);
+  // Validation des dates : doit avoir au moins 1 jour de location
+  // numberOfDays vient du hook useBookingSummary partagé au niveau du parent
+  const areDatesValid = numberOfDays >= 1;
 
   const {
     register,
@@ -71,10 +98,11 @@ export const BookingForm = ({
     //   address2: "",
     //   postalCode: "",
     //   city: "",
-    //   country: "FR",
+    //   country: "", // Pas de valeur par défaut pour forcer la sélection
     //   driverLicenseNumber: "",
     //   driverLicenseIssuedAt: "",
-    //   driverLicenseCountry: "FR",
+    //   driverLicenseCountry: "",
+    //   acceptTerms: false,
     // },
     defaultValues: {
       firstName: "dylann",
@@ -87,16 +115,62 @@ export const BookingForm = ({
       address2: "",
       postalCode: "97300",
       city: "Cayenne",
-      country: "FR",
+      country: "",
       driverLicenseNumber: "",
       driverLicenseIssuedAt: "",
       driverLicenseCountry: "FR",
+      acceptTerms: false,
     },
   });
 
   const onSubmit = async (data: BookingFormData) => {
     try {
       setBookingError(null);
+
+      // Vérifier la disponibilité avant de créer la réservation
+      // En excluant le booking courant (si présent) pour permettre la modification
+      const availabilityCheck = await checkVehicleAvailability({
+        vehicleId: vehicle.id,
+        startDate,
+        endDate,
+        excludeBookingId: bookingId, // Exclure le booking courant de la vérification
+      });
+
+      if (!availabilityCheck.available) {
+        // Construire un message détaillé selon le type de conflit
+        let message: string;
+
+        if (availabilityCheck.conflictStart && availabilityCheck.conflictEnd) {
+          const formattedStart = formatDateTimeFR(
+            new Date(availabilityCheck.conflictStart)
+          );
+          const formattedEnd = formatDateTimeFR(
+            new Date(availabilityCheck.conflictEnd)
+          );
+
+          switch (availabilityCheck.conflictStatus) {
+            case "pending_payment":
+              message = `Ce véhicule est en cours de réservation du ${formattedStart} au ${formattedEnd}. Veuillez sélectionner d'autres dates ou un autre véhicule.`;
+              break;
+            case "paid":
+              message = `Ce véhicule est déjà réservé du ${formattedStart} au ${formattedEnd}. Veuillez sélectionner d'autres dates ou un autre véhicule.`;
+              break;
+            case "blocked_period":
+              message = `Ce véhicule est indisponible du ${formattedStart} au ${formattedEnd}. Veuillez sélectionner d'autres dates ou un autre véhicule.`;
+              break;
+            default:
+              message =
+                "Ce véhicule n'est plus disponible pour la période sélectionnée. Merci de choisir d'autres dates ou un autre véhicule.";
+          }
+        } else {
+          message =
+            "Ce véhicule n'est plus disponible pour la période sélectionnée. Merci de choisir d'autres dates ou un autre véhicule.";
+        }
+
+        setBookingError(message);
+        toast.warning(message);
+        return; // Empêche la soumission
+      }
 
       // Appeler la Server Action pour créer la réservation et la session Stripe
       const result = await createBookingAction({
@@ -108,6 +182,7 @@ export const BookingForm = ({
         startDate,
         endDate,
         totalPrice,
+        bookingId, // Passer le bookingId pour mettre à jour le booking "initiated"
       });
 
       if (!result.success) {
@@ -122,11 +197,6 @@ export const BookingForm = ({
         toast.error("Impossible de créer la session de paiement");
         return;
       }
-
-      console.log("✅ Réservation créée:", {
-        customerId: result.customerId,
-        bookingId: result.bookingId,
-      });
 
       // Rediriger vers Stripe Checkout
       router.push(result.checkoutUrl);
@@ -300,14 +370,21 @@ export const BookingForm = ({
             />
           </div>
 
-          <NativeSelect
-            id="country"
-            label="Pays"
-            required
-            placeholder="Sélectionnez un pays"
-            options={countries}
-            error={errors.country?.message}
-            {...register("country")}
+          <Controller
+            name="country"
+            control={control}
+            render={({ field }) => (
+              <NativeSelect
+                id="country"
+                label="Pays"
+                required
+                placeholder="Sélectionnez un pays"
+                options={countries}
+                value={field.value}
+                onValueChange={field.onChange}
+                error={errors.country?.message}
+              />
+            )}
           />
         </div>
 
@@ -344,20 +421,71 @@ export const BookingForm = ({
               )}
             />
 
-            <NativeSelect
-              id="driverLicenseCountry"
-              label="Pays d'obtention"
-              placeholder="Sélectionnez un pays"
-              options={countries}
-              error={errors.driverLicenseCountry?.message}
-              {...register("driverLicenseCountry")}
+            <Controller
+              name="driverLicenseCountry"
+              control={control}
+              render={({ field }) => (
+                <NativeSelect
+                  id="driverLicenseCountry"
+                  label="Pays d'obtention"
+                  placeholder="Sélectionnez un pays"
+                  options={countries}
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  error={errors.driverLicenseCountry?.message}
+                />
+              )}
             />
+          </div>
+        </div>
+
+        {/* Section 4 - Acceptation des conditions */}
+        <div className="bg-green/40 p-2 rounded-md mb-0">
+          <div className="flex items-start gap-3">
+            <Controller
+              name="acceptTerms"
+              control={control}
+              render={({ field }) => (
+                <Checkbox
+                  id="acceptTerms"
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                  onBlur={field.onBlur}
+                  aria-invalid={!!errors.acceptTerms}
+                  className="mt-0.5"
+                />
+              )}
+            />
+            <div className="flex-1">
+              <label htmlFor="acceptTerms" className="text-sm cursor-pointer">
+                J'accepte les{" "}
+                <Link
+                  href="/conditions-generales-de-location"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-black font-bold hover:underline"
+                >
+                  Conditions Générales de Location
+                </Link>{" "}
+                et que <strong>{agencyName}</strong> traite mes informations.{" "}
+                <span className="text-red-500">*</span>
+              </label>
+              {errors.acceptTerms && (
+                <p className="text-sm text-red-600 mt-1">
+                  {errors.acceptTerms.message}
+                </p>
+              )}
+            </div>
           </div>
         </div>
 
         {/* Bouton de soumission */}
         <div className="pt-4">
-          <Button type="submit" className="w-full" disabled={isSubmitting}>
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={isSubmitting || !areDatesValid}
+          >
             {isSubmitting ? "Traitement en cours..." : "Confirmer et payer"}
           </Button>
         </div>

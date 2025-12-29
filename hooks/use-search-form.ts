@@ -1,9 +1,13 @@
 import { useMemo, useState, useRef } from "react";
 import { useForm, useWatch } from "react-hook-form";
-import { isAfter, parse } from "date-fns";
 import type { DateRange } from "react-day-picker";
 import type { Vehicle, Agency } from "@/types";
-import { generateTimeSlots, getAvailableEndTimeSlots } from "@/lib/utils";
+import {
+  generateTimeSlots,
+  getAvailableEndTimeSlots,
+  getAvailableStartTimeSlots,
+  isTodayDisabledForBooking
+} from "@/lib/utils";
 import { isVehicleAvailableWithBookings } from "@/lib/availability";
 import type { VehicleBooking } from "@/actions/get-vehicle-bookings";
 
@@ -113,46 +117,12 @@ export const useSearchForm = ({ agencies, bookingsMap = new Map() }: UseSearchFo
 
   // Filter available start time slots based on current date/time
   const availableStartTimeSlots = useMemo(() => {
-    if (!dateRange?.from) return timeSlots;
-
-    const selectedDate = new Date(dateRange.from);
-    selectedDate.setHours(0, 0, 0, 0);
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    // If selected date is not today, all time slots are available
-    if (selectedDate.getTime() !== today.getTime()) {
-      return timeSlots;
-    }
-
-    // If selected date is today, filter out past time slots
-    const now = new Date();
-
-    return timeSlots.filter((timeSlot) => {
-      const slotTime = parse(timeSlot, "HH:mm", new Date());
-      slotTime.setFullYear(now.getFullYear(), now.getMonth(), now.getDate());
-
-      return isAfter(slotTime, now) || slotTime.getTime() === now.getTime();
-    });
-  }, [dateRange, timeSlots]);
+    return getAvailableStartTimeSlots(dateRange?.from, timeSlots);
+  }, [dateRange?.from, timeSlots]);
 
   // Check if today should be disabled (no available time slots)
   const isTodayDisabled = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const now = new Date();
-    const currentHours = now.getHours();
-    const currentMinutes = now.getMinutes();
-
-    // Check if any time slot is available today
-    const hasAvailableSlots = timeSlots.some((timeSlot) => {
-      const [hours, minutes] = timeSlot.split(":").map(Number);
-      return hours > currentHours || (hours === currentHours && minutes > currentMinutes);
-    });
-
-    return !hasAvailableSlots;
+    return isTodayDisabledForBooking(timeSlots);
   }, [timeSlots]);
 
   // Filtre les heures de retour pour same-day booking

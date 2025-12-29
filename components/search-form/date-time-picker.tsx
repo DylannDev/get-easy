@@ -3,6 +3,7 @@
 import { forwardRef } from "react";
 import { CalendarIcon, ChevronDownIcon } from "lucide-react";
 import type { DateRange } from "react-day-picker";
+import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -89,7 +90,11 @@ export const DateTimePicker = forwardRef<
                 <ChevronDownIcon className="size-4 opacity-50" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent sideOffset={20} className="w-auto" align="center">
+            <PopoverContent
+              sideOffset={20}
+              className="w-auto border border-gray-300 rounded-xl z-60"
+              align="center"
+            >
               {calendarMode === "single" ? (
                 <Calendar
                   mode="single"
@@ -102,6 +107,20 @@ export const DateTimePicker = forwardRef<
                     }
                   }}
                   numberOfMonths={2}
+                  locale={fr}
+                  weekStartsOn={1}
+                  showOutsideDays={false}
+                  formatters={{
+                    formatCaption: (date) => {
+                      const month = date.toLocaleDateString("fr-FR", { month: "long" });
+                      const year = date.getFullYear();
+                      return month.charAt(0).toUpperCase() + month.slice(1) + " " + year;
+                    },
+                    formatWeekdayName: (date) => {
+                      const day = date.toLocaleDateString("fr-FR", { weekday: "short" });
+                      return day.replace(".", "").charAt(0).toUpperCase() + day.replace(".", "").slice(1);
+                    },
+                  }}
                   disabled={(date) => {
                     const today = new Date(new Date().setHours(0, 0, 0, 0));
                     const isPast = date < today;
@@ -117,6 +136,20 @@ export const DateTimePicker = forwardRef<
                   selected={dateRange}
                   onSelect={onDateRangeChange}
                   numberOfMonths={2}
+                  locale={fr}
+                  weekStartsOn={1}
+                  showOutsideDays={false}
+                  formatters={{
+                    formatCaption: (date) => {
+                      const month = date.toLocaleDateString("fr-FR", { month: "long" });
+                      const year = date.getFullYear();
+                      return month.charAt(0).toUpperCase() + month.slice(1) + " " + year;
+                    },
+                    formatWeekdayName: (date) => {
+                      const day = date.toLocaleDateString("fr-FR", { weekday: "short" });
+                      return day.replace(".", "").charAt(0).toUpperCase() + day.replace(".", "").slice(1);
+                    },
+                  }}
                   disabled={(date) => {
                     const today = new Date(new Date().setHours(0, 0, 0, 0));
                     const isPast = date < today;
@@ -151,7 +184,7 @@ export const DateTimePicker = forwardRef<
                 <span className="text-muted-foreground">Heure</span>
               )}
             </SelectTrigger>
-            <SelectContent sideOffset={16}>
+            <SelectContent sideOffset={16} className="z-60">
               {timeSlots.map((time) => (
                 <SelectItem key={time} value={time}>
                   {time}

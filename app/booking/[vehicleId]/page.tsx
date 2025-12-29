@@ -1,18 +1,14 @@
 import { redirect } from "next/navigation";
 import { validateDates } from "@/lib/utils";
 import { BookingPageClient } from "@/components/booking/booking-page-client";
-import { getVehicleById } from "@/lib/supabase/queries";
+import { getVehicleById, getAgencyById } from "@/lib/supabase/queries";
 import { mapVehicleFromDB } from "@/lib/supabase/mappers";
 import { getVehicleBookings } from "@/actions/get-vehicle-bookings";
 
 interface BookingPageProps {
   params: Promise<{ vehicleId: string }>;
-  searchParams: Promise<{ start?: string; end?: string }>;
+  searchParams: Promise<{ start?: string; end?: string; bookingId?: string }>;
 }
-
-const VEHICLE_IMAGE_URLS: Record<string, string> = {
-  default: "/renault-clio.png",
-};
 
 export async function generateMetadata({ params }: BookingPageProps) {
   const { vehicleId } = await params;
@@ -24,10 +20,7 @@ export async function generateMetadata({ params }: BookingPageProps) {
     };
   }
 
-  const vehicle = mapVehicleFromDB(
-    dbVehicle,
-    VEHICLE_IMAGE_URLS[dbVehicle.id] || VEHICLE_IMAGE_URLS.default
-  );
+  const vehicle = mapVehicleFromDB(dbVehicle);
 
   return {
     title: `Réservation ${vehicle.brand} ${vehicle.model} - Get Easy`,
@@ -40,7 +33,7 @@ export default async function BookingPage({
   searchParams,
 }: BookingPageProps) {
   const { vehicleId } = await params;
-  const { start, end } = await searchParams;
+  const { start, end, bookingId } = await searchParams;
 
   // Find vehicle from Supabase
   const dbVehicle = await getVehicleById(vehicleId);
@@ -48,13 +41,17 @@ export default async function BookingPage({
     redirect("/");
   }
 
-  const vehicle = mapVehicleFromDB(
-    dbVehicle,
-    VEHICLE_IMAGE_URLS[dbVehicle.id] || VEHICLE_IMAGE_URLS.default
-  );
+  const vehicle = mapVehicleFromDB(dbVehicle);
 
   // Récupérer l'agencyId depuis le véhicule DB
   const agencyId = dbVehicle.agency_id;
+
+  // Récupérer l'agence pour obtenir son nom et ses horaires
+  const agency = await getAgencyById(agencyId);
+
+  if (!agency) {
+    redirect("/");
+  }
 
   // Récupérer les bookings du véhicule
   const bookings = await getVehicleBookings(vehicleId);
@@ -90,15 +87,16 @@ export default async function BookingPage({
   }
 
   return (
-    <main className="min-h-screen py-6 bg-gray-50">
+    <main className="min-h-screen pt-6 pb-12 bg-gray-50">
       <div className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
         {/* Booking Content with Timeline */}
         <BookingPageClient
           vehicle={vehicle}
-          agencyId={agencyId}
+          agency={agency}
           startDate={startDate}
           endDate={endDate}
           bookings={bookings}
+          bookingId={bookingId}
         />
       </div>
     </main>

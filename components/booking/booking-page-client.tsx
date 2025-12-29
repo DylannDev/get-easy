@@ -3,17 +3,22 @@
 import { useState } from "react";
 import type { Vehicle } from "@/types";
 import type { VehicleBooking } from "@/actions/get-vehicle-bookings";
+import type { Database } from "@/lib/supabase/database.types";
 import { VehicleInfo } from "./vehicle-info";
 import { BookingSummary } from "./booking-summary";
 import { BookingForm } from "./booking-form";
 import { Timeline, type TimelineStep } from "@/components/ui/timeline";
+import { useBookingSummary } from "@/hooks/use-booking-summary";
+
+type Agency = Database["public"]["Tables"]["agencies"]["Row"];
 
 interface BookingPageClientProps {
   vehicle: Vehicle;
-  agencyId: string;
+  agency: Agency;
   startDate: Date;
   endDate: Date;
   bookings: VehicleBooking[];
+  bookingId?: string;
 }
 
 const BOOKING_STEPS: TimelineStep[] = [
@@ -25,13 +30,23 @@ const BOOKING_STEPS: TimelineStep[] = [
 
 export const BookingPageClient = ({
   vehicle,
-  agencyId,
+  agency,
   startDate,
   endDate,
   bookings,
+  bookingId,
 }: BookingPageClientProps) => {
   const [currentStep, setCurrentStep] = useState(1); // Démarre à l'étape 1 (Conditions et récapitulatif)
   const [showForm, setShowForm] = useState(false);
+
+  // Utiliser le hook useBookingSummary au niveau parent pour partager l'état entre BookingSummary et BookingForm
+  const bookingSummaryData = useBookingSummary({
+    vehicle,
+    agency,
+    startDate,
+    endDate,
+    bookings,
+  });
 
   const handleStepClick = (stepId: number) => {
     setCurrentStep(stepId);
@@ -50,7 +65,6 @@ export const BookingPageClient = ({
     }
   };
 
-
   const handleBackFromForm = () => {
     setCurrentStep(1);
     setShowForm(false);
@@ -59,6 +73,8 @@ export const BookingPageClient = ({
   const handleProceedToForm = () => {
     setCurrentStep(2);
     setShowForm(true);
+    // Scroll vers le haut de la page
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return (
@@ -75,29 +91,32 @@ export const BookingPageClient = ({
       {/* Content */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column - Vehicle Info or Form */}
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 order-2 lg:order-1">
           {showForm ? (
             <BookingForm
               onBack={handleBackFromForm}
               vehicle={vehicle}
-              agencyId={agencyId}
+              agency={agency}
               startDate={startDate}
               endDate={endDate}
+              numberOfDays={bookingSummaryData.numberOfDays}
+              totalPrice={bookingSummaryData.totalPrice}
+              bookingId={bookingId}
             />
           ) : (
             <VehicleInfo vehicle={vehicle} />
           )}
         </div>
 
-        {/* Right Column - Booking Summary */}
-        <div className="lg:col-span-1">
+        {/* Right Column - Booking Summary (masqué sur mobile quand showForm est true) */}
+        <div
+          className={`lg:col-span-1 order-1 lg:order-2 ${showForm ? "hidden lg:block" : ""}`}
+        >
           <BookingSummary
             vehicle={vehicle}
-            startDate={startDate}
-            endDate={endDate}
             currentStep={currentStep}
             onProceedToForm={handleProceedToForm}
-            bookings={bookings}
+            bookingSummaryData={bookingSummaryData}
           />
         </div>
       </div>
