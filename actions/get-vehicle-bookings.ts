@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 
 export interface VehicleBooking {
+  id: string;
   start_date: string;
   end_date: string;
   status: string;
@@ -10,6 +11,8 @@ export interface VehicleBooking {
 
 /**
  * Récupère toutes les réservations actives pour un véhicule donné
+ * Ne retourne que les réservations "paid" ou "pending_payment" dont la date de fin n'est pas dépassée
+ *
  * @param vehicleId - ID du véhicule
  * @returns Liste des réservations avec start_date, end_date et status
  */
@@ -19,10 +22,14 @@ export async function getVehicleBookings(
   try {
     const supabase = await createClient();
 
+    // Récupère uniquement les bookings paid ou pending_payment
+    // et exclut les bookings passés (end_date < NOW())
     const { data, error } = await supabase
       .from("bookings")
-      .select("start_date, end_date, status")
-      .eq("vehicle_id", vehicleId);
+      .select("id, start_date, end_date, status")
+      .eq("vehicle_id", vehicleId)
+      .in("status", ["paid", "pending_payment"])
+      .gte("end_date", new Date().toISOString());
 
     if (error) {
       console.error("❌ Erreur lors de la récupération des bookings:", error);
@@ -38,6 +45,8 @@ export async function getVehicleBookings(
 
 /**
  * Récupère toutes les réservations actives pour plusieurs véhicules
+ * Ne retourne que les réservations "paid" ou "pending_payment" dont la date de fin n'est pas dépassée
+ *
  * @param vehicleIds - Liste des IDs de véhicules
  * @returns Map avec vehicleId comme clé et liste de bookings comme valeur
  */
@@ -47,10 +56,14 @@ export async function getMultipleVehiclesBookings(
   try {
     const supabase = await createClient();
 
+    // Récupère uniquement les bookings paid ou pending_payment
+    // et exclut les bookings passés (end_date < NOW())
     const { data, error } = await supabase
       .from("bookings")
-      .select("vehicle_id, start_date, end_date, status")
-      .in("vehicle_id", vehicleIds);
+      .select("id, vehicle_id, start_date, end_date, status")
+      .in("vehicle_id", vehicleIds)
+      .in("status", ["paid", "pending_payment"])
+      .gte("end_date", new Date().toISOString());
 
     if (error) {
       console.error("❌ Erreur lors de la récupération des bookings:", error);
@@ -66,6 +79,7 @@ export async function getMultipleVehiclesBookings(
         bookingsMap.set(vehicleId, []);
       }
       bookingsMap.get(vehicleId)!.push({
+        id: booking.id,
         start_date: booking.start_date,
         end_date: booking.end_date,
         status: booking.status,
