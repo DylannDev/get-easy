@@ -15,7 +15,7 @@ interface BookingResultCardProps {
   secondaryButton?: {
     label: string;
     onClick: () => void;
-    variant?: "outline" | "ghost" | "secondary";
+    variant?: "default" | "outline" | "ghost";
   };
 }
 
