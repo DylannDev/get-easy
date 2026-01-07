@@ -16,6 +16,7 @@ interface BookingPaidAdminEmailProps {
   firstName: string;
   lastName: string;
   customerEmail: string;
+  phone: string;
   startDate: string;
   endDate: string;
   totalPrice: number;
@@ -29,6 +30,7 @@ export const BookingPaidAdminEmail = ({
   firstName,
   lastName,
   customerEmail,
+  phone,
   startDate,
   endDate,
   totalPrice,
@@ -89,6 +91,15 @@ export const BookingPaidAdminEmail = ({
                   </Text>
                   <Text className="text-base text-black font-semibold">
                     {customerEmail}
+                  </Text>
+                </div>
+
+                <div>
+                  <Text className="text-sm text-gray-500 mb-1 font-medium">
+                    Téléphone du client
+                  </Text>
+                  <Text className="text-base text-black font-semibold">
+                    {phone}
                   </Text>
                 </div>
 
