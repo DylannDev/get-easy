@@ -24,6 +24,7 @@ interface SendBookingPaidAdminEmailParams {
   firstName: string;
   lastName: string;
   customerEmail: string;
+  customerPhone: string;
   bookingId: string;
   startDate: string;
   endDate: string;
@@ -121,6 +122,7 @@ export async function sendBookingPaidAdminEmail(
       firstName,
       lastName,
       customerEmail,
+      customerPhone,
       startDate,
       endDate,
       totalPrice,
@@ -135,6 +137,7 @@ export async function sendBookingPaidAdminEmail(
         firstName,
         lastName,
         customerEmail,
+        phone: customerPhone,
         startDate,
         endDate,
         totalPrice,

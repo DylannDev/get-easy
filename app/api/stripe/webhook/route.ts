@@ -421,6 +421,7 @@ export async function POST(request: NextRequest) {
             firstName: customer.first_name,
             lastName: customer.last_name,
             customerEmail: customer.email,
+            customerPhone: customer.phone,
             bookingId: bookingId,
             startDate: formattedStartDate,
             endDate: formattedEndDate,
