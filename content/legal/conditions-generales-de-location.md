@@ -53,9 +53,9 @@ L'entreprise se réserve le droit de refuser une location en cas d'informations 
 
 La réservation s'effectue en ligne via notre site internet :
 
-1. Sélection du véhicule et des dates de location
-2. Saisie des informations personnelles du conducteur
-3. Paiement en ligne sécurisé via **Stripe**
+- Sélection du véhicule et des dates de location
+- Saisie des informations personnelles du conducteur
+- Paiement en ligne sécurisé via **Stripe**
 
 ### 3.2 Confirmation
 
@@ -159,7 +159,7 @@ En cas d'annulation par le locataire, **aucun remboursement** ne sera effectué 
 Le Loueur conserve **100% du montant de la location**. Aucune indemnité complémentaire ne pourra être réclamée par le locataire.
 
 Toute demande d'annulation doit être notifiée par écrit à l'adresse e-mail suivante :
-**get.easylocation973@gmail.com**
+**contact@geteasylocation.com**
 
 ### 6.2 Force majeure
 
@@ -390,7 +390,7 @@ Conformément au **Règlement Général sur la Protection des Données (RGPD)**,
 - Le locataire dispose d'un **droit d'accès, de rectification et d'opposition** aux données le concernant
 
 Pour exercer ces droits, le locataire peut écrire à :
-**get.easylocation973@gmail.com**
+**contact@geteasylocation.com**
 
 ### 12.5 Acceptation expresse
 
@@ -409,7 +409,7 @@ Les données personnelles collectées lors de la réservation sont utilisées po
 Conformément au **RGPD**, le locataire dispose d'un droit d'accès, de rectification, d'opposition et de suppression de ses données personnelles.
 
 Pour exercer ces droits, le locataire peut contacter :
-**get.easylocation973@gmail.com**
+**contact@geteasylocation.com**
 
 Les données personnelles sont conservées pendant la durée nécessaire à la gestion de la location et conformément aux obligations légales.
 
