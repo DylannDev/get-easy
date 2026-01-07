@@ -77,13 +77,9 @@ export const VehicleInfo = ({ vehicle }: VehicleInfoProps) => {
         <CardTitle>Conditions de location</CardTitle>
         <CardContent>
           <div className="space-y-3 text-sm">
-            <ConditionItem
-              label="Kilomètres inclus par jour"
-              value="Illimité"
-            />
-
-            <ConditionItem label="Assurance incluse" value="Tout risque" />
-            <ConditionItem label="Âge minimum" value="21 ans" />
+            <ConditionItem label="Kilomètrage inclus" value="100 km/jour" />
+            {/* <ConditionItem label="Assurance incluse" value="Tout risque" /> */}
+            <ConditionItem label="Âge minimum" value="23 ans" />
             <ConditionItem label="Permis" value="B / B1 (3 ans minimum)" />
             <ConditionItem label="Caution" value="1 000,00 €" />
           </div>
