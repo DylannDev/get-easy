@@ -445,7 +445,8 @@ Le locataire reconnaît avoir pris connaissance de l'intégralité des présente
 
 **Conditions Générales de Location mises à jour le : 07/01/2026**
 
-**GET EASY LOCATION GUYANE**
-Remire-Montjoly, Guyane Française
-Email : contact@geteasylocation.com
+**GET EASY LOCATION GUYANE**  
+IMPASSE ADOLPHINE TULINS, 4 LOTISSEMENT MORTIN,  
+97354 REMIRE-MONTJOLY  
+Email : contact@geteasylocation.com  
 Téléphone : 0694 03 06 70
