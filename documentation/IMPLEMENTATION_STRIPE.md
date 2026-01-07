@@ -5,23 +5,27 @@
 ### 1. Base de données (Supabase)
 
 #### Tables créées :
+
 - **`customers`** : Stocke les informations des clients
 - **`bookings`** : Stocke les réservations avec statuts (pending_payment, paid, payment_failed, refunded)
 - **`payments`** : Stocke les paiements Stripe avec statuts (created, succeeded, failed, refunded)
 
 #### Migration SQL :
+
 - `supabase/migrations/create_customers_and_bookings.sql`
 - `supabase/migrations/create_payments_table.sql`
 
 ### 2. Configuration Stripe
 
 #### Fichiers créés :
+
 - **`lib/stripe.ts`** : Instance Stripe réutilisable
 - **`lib/supabase/server.ts`** : Ajout de `createAdminClient()` pour les opérations admin
 
 ### 3. Server Action (`actions/create-booking.ts`)
 
 Le flux complet :
+
 1. ✅ Vérification/création du customer dans Supabase
 2. ✅ Création du booking avec status `pending_payment`
 3. ✅ Création du payment avec status `created`
@@ -34,6 +38,7 @@ Le flux complet :
 ### 4. Composant BookingForm (`components/booking/booking-form.tsx`)
 
 Modifications :
+
 - ✅ Import de `useRouter` pour la navigation
 - ✅ Appel de `createBookingAction`
 - ✅ Vérification de `checkoutUrl` dans la réponse
@@ -42,6 +47,7 @@ Modifications :
 ### 5. Webhook Stripe (`app/api/stripe/webhook/route.ts`)
 
 Événements gérés :
+
 - ✅ **`checkout.session.completed`** :
   - Met à jour le payment → status `succeeded`
   - Met à jour le booking → status `paid`
@@ -55,6 +61,7 @@ Modifications :
   - Met à jour le booking → status `refunded`
 
 Sécurité :
+
 - ✅ Vérification de la signature Stripe
 - ✅ Utilisation du client Supabase admin
 - ✅ Gestion d'erreurs complète
@@ -62,12 +69,14 @@ Sécurité :
 ### 6. Pages de succès et d'annulation
 
 #### Page de succès (`app/booking/success/page.tsx` et `success-page-client.tsx`) :
+
 - ✅ Affichage de confirmation
 - ✅ Récupération du `session_id` depuis l'URL
 - ✅ Animation de vérification
 - ✅ Bouton retour à l'accueil
 
 #### Page d'annulation (`app/booking/cancelled/page.tsx`) :
+
 - ✅ Message d'annulation
 - ✅ Bouton retour à l'accueil
 - ✅ Bouton retour à la réservation
@@ -75,12 +84,14 @@ Sécurité :
 ### 7. Types TypeScript
 
 Mise à jour de `lib/supabase/database.types.ts` :
+
 - ✅ Types pour la table `payments`
 - ✅ Types Row, Insert, Update
 
 ### 8. Documentation
 
 Fichiers créés :
+
 - ✅ **`.env.example`** : Variables d'environnement nécessaires
 - ✅ **`STRIPE_SETUP.md`** : Guide complet de configuration Stripe
 - ✅ **`IMPLEMENTATION_STRIPE.md`** : Ce fichier de récapitulatif
@@ -213,12 +224,14 @@ Copiez le webhook secret affiché dans `.env.local`.
 ## 📊 Statuts des tables
 
 ### Table `bookings`
+
 - `pending_payment` : Réservation créée, en attente de paiement
 - `paid` : Paiement réussi
 - `payment_failed` : Paiement échoué
 - `refunded` : Remboursé
 
 ### Table `payments`
+
 - `created` : Paiement créé, session Stripe initiée
 - `succeeded` : Paiement réussi
 - `failed` : Paiement échoué
@@ -262,6 +275,7 @@ Lors d'un paiement réussi (webhook `checkout.session.completed`), **2 emails** 
 ### Configuration
 
 Voir [RESEND_SETUP.md](RESEND_SETUP.md) pour :
+
 - Configuration de la clé API Resend
 - Vérification du domaine
 - Configuration de l'email administrateur
@@ -271,7 +285,7 @@ Voir [RESEND_SETUP.md](RESEND_SETUP.md) pour :
 
 ```env
 RESEND_API_KEY=re_...
-ADMIN_EMAIL=admin@get-easy.vercel.app
+ADMIN_EMAIL=admin@geteasylocation.com
 ```
 
 ## 🎯 Prochaines étapes (optionnelles)
@@ -286,6 +300,7 @@ ADMIN_EMAIL=admin@get-easy.vercel.app
 ## 📞 Support
 
 Pour toute question sur l'implémentation, consultez :
+
 - `STRIPE_SETUP.md` pour la configuration
 - Les logs serveur pour le debugging
 - La documentation Stripe : https://stripe.com/docs

@@ -46,7 +46,7 @@ export const BookingPaidAdminEmail = ({
             {/* Logo */}
             <Section className="px-8 pt-8 pb-4">
               <Img
-                src="https://get-easy.vercel.app/logo.svg"
+                src="https://geteasylocation.com/logo.svg"
                 alt="Get Easy"
                 width="120"
                 height="40"

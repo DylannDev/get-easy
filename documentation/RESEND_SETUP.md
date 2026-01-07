@@ -43,7 +43,7 @@ Pour utiliser votre propre domaine en production :
 
 1. Allez dans **Domains**
 2. Cliquez sur **Add Domain**
-3. Entrez votre domaine (ex: `get-easy.vercel.app`)
+3. Entrez votre domaine (ex: `geteasylocation.com`)
 4. Ajoutez les enregistrements DNS fournis par Resend à votre hébergeur
 5. Attendez la vérification (généralement quelques minutes)
 
@@ -129,6 +129,7 @@ Puis ouvrez [http://localhost:3001](http://localhost:3001) dans votre navigateur
 ### Tableau de bord Resend
 
 Consultez le tableau de bord Resend pour :
+
 - Voir les emails envoyés
 - Vérifier les taux d'ouverture
 - Consulter les logs d'erreurs
@@ -137,6 +138,7 @@ Consultez le tableau de bord Resend pour :
 ### Logs de l'application
 
 Les logs de l'application affichent :
+
 - ✅ Email de confirmation envoyé au client
 - ✅ Email de notification envoyé à l'admin
 - ⚠️ Échec de l'envoi (avec détails de l'erreur)
@@ -159,6 +161,7 @@ Les logs de l'application affichent :
 ### Limite de taux dépassée
 
 Le plan gratuit de Resend permet :
+
 - 100 emails/jour
 - 3 000 emails/mois
 

@@ -62,8 +62,7 @@ export const BookingRejectedEmail = ({
     <Html>
       <Head />
       <Preview>
-        Votre paiement ne peut pas être validé - {vehicle.brand}{" "}
-        {vehicle.model}
+        Votre paiement ne peut pas être validé - {vehicle.brand} {vehicle.model}
       </Preview>
       <Tailwind>
         <Body className="">
@@ -71,7 +70,7 @@ export const BookingRejectedEmail = ({
             {/* Logo */}
             <Section className="px-8 pt-8 pb-4">
               <Img
-                src="https://get-easy.vercel.app/logo.svg"
+                src="https://geteasylocation.com/logo.svg"
                 alt="Get Easy"
                 width="120"
                 height="40"
@@ -124,9 +123,7 @@ export const BookingRejectedEmail = ({
                   <Text className="text-sm text-gray-500 m-0 mb-1">
                     Date de départ
                   </Text>
-                  <Text className="text-base text-black m-0">
-                    {startDate}
-                  </Text>
+                  <Text className="text-base text-black m-0">{startDate}</Text>
                 </div>
 
                 <div>
@@ -146,8 +143,8 @@ export const BookingRejectedEmail = ({
                 Remboursement automatique
               </Heading>
               <Text className="text-base text-gray-800 m-0">
-                Votre paiement sera automatiquement remboursé sur votre moyen
-                de paiement dans un délai de 5 à 10 jours ouvrés.
+                Votre paiement sera automatiquement remboursé sur votre moyen de
+                paiement dans un délai de 5 à 10 jours ouvrés.
               </Text>
             </Section>
 
@@ -156,7 +153,9 @@ export const BookingRejectedEmail = ({
             {/* Prochaines étapes */}
             <Section className="p-4">
               <Heading className="text-lg font-semibold text-black mb-2">
-                {reason === "unavailable" ? "Nouvelle réservation" : "Que faire ?"}
+                {reason === "unavailable"
+                  ? "Nouvelle réservation"
+                  : "Que faire ?"}
               </Heading>
               {reason === "unavailable" && (
                 <Text className="text-base text-gray-600 m-0 mb-4">

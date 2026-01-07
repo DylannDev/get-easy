@@ -71,8 +71,8 @@ export async function sendBookingPaidClientEmail(
     } = params;
 
     const { data, error } = await resend.emails.send({
-      from: "Get Easy <noreply@vizionweb.fr>",
-      to: "d.xavero@hotmail.com",
+      from: "Get Easy <noreply@geteasylocation.com>",
+      to: to,
       subject: `Confirmation de réservation - ${vehicle.brand} ${vehicle.model}`,
       react: BookingPaidClientEmail({
         firstName,
@@ -118,7 +118,6 @@ export async function sendBookingPaidAdminEmail(
 ): Promise<SendEmailResult> {
   try {
     const {
-      to,
       firstName,
       lastName,
       customerEmail,
@@ -129,8 +128,8 @@ export async function sendBookingPaidAdminEmail(
     } = params;
 
     const { data, error } = await resend.emails.send({
-      from: "Get Easy <noreply@vizionweb.fr>",
-      to: "contact@vizionweb.fr",
+      from: "Get Easy <noreply@geteasylocation.com>",
+      to: "contact@geteasylocation.com",
       subject: `Nouvelle réservation - ${vehicle.brand} ${vehicle.model}`,
       react: BookingPaidAdminEmail({
         firstName,
@@ -179,8 +178,8 @@ export async function sendBookingRejectedEmail(
       params;
 
     const { data, error } = await resend.emails.send({
-      from: "Get Easy <noreply@vizionweb.fr>",
-      to: "d.xavero@hotmail.com",
+      from: "Get Easy <noreply@geteasylocation.com>",
+      to: to,
       subject: `Paiement non validé - ${vehicle.brand} ${vehicle.model}`,
       react: BookingRejectedEmail({
         firstName,
@@ -193,10 +192,7 @@ export async function sendBookingRejectedEmail(
     });
 
     if (error) {
-      console.error(
-        "❌ Erreur lors de l'envoi de l'email de rejet:",
-        error
-      );
+      console.error("❌ Erreur lors de l'envoi de l'email de rejet:", error);
       return {
         success: false,
         error: error.message,
