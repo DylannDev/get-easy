@@ -13,7 +13,7 @@ import { PiCar } from "react-icons/pi";
 
 const CONTACT_INFO = {
   phone: "06 94 03 06 70",
-  email: "contact@geteasy.fr",
+  email: "contact@geteasylocation.com",
   address: "4 Lotissement Mortin, 97354 Rémire-Montjoly",
   hours: "7h - 22h 7j/7",
 } as const;

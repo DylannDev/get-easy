@@ -14,7 +14,7 @@ const PAYMENT_METHODS = [
 
 const CONTACT_INFO = {
   phone: "06 94 03 06 70",
-  email: "contact@geteasy.fr",
+  email: "contact@geteasylocation.com",
   address: "4 Lotissement Mortin, 97354 Rémire-Montjoly",
 } as const;
 

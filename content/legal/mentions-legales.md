@@ -7,7 +7,7 @@
 **Adresse :** IMPASSE ADOLPHINE TULINS, 4 LOTISSEMENT MORTIN  
 97354 REMIRE-MONTJOLY  
 **Téléphone :** 06 94 03 06 70  
-**E-mail :** contact@geteasy.fr  
+**E-mail :** contact@geteasylocation.com  
 **SIREN :** 988740452  
 **SIRET :** 98874045200012  
 **Numéro de TVA :** FR71988740452

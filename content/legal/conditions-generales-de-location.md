@@ -119,7 +119,7 @@ Get Easy ne saurait être responsable en cas d'accident lié à une mauvaise con
 
 Les données personnelles sont collectées pour la gestion des réservations.  
 Conformément au RGPD, le locataire peut exercer ses droits à l’adresse suivante :  
-**contact@geteasy.fr**
+**contact@geteasylocation.com**
 
 ---
 
