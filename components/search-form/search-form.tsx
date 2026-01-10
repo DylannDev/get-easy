@@ -1,6 +1,7 @@
 /* eslint-disable react/no-unescaped-entities */
 "use client";
 
+import { useEffect } from "react";
 import { SearchFormDesktop } from "@/components/search-form/search-form-desktop";
 import { SearchFormMobile } from "@/components/search-form/search-form-mobile";
 import { VehicleResults } from "@/components/search-form/vehicle-results";
@@ -8,6 +9,7 @@ import { useSearchForm } from "@/hooks/use-search-form";
 import Image from "next/image";
 import type { Agency } from "@/types";
 import type { VehicleBooking } from "@/actions/get-vehicle-bookings";
+import { toast } from "sonner";
 
 interface SearchFormProps {
   agencies: Agency[];
@@ -58,6 +60,13 @@ export const SearchForm = ({ agencies, bookingsMap }: SearchFormProps) => {
 
   // Wrapper function for form submission
   const onSubmit = handleSubmit(async () => {});
+
+  // Afficher un toast en cas d'erreur
+  useEffect(() => {
+    if (error) {
+      toast.error(error);
+    }
+  }, [error]);
 
   return (
     <section className="w-full mb-6">
@@ -131,20 +140,14 @@ export const SearchForm = ({ agencies, bookingsMap }: SearchFormProps) => {
 
       {/* Results */}
       <div className="py-5 px-4 sm:px-0">
-        {error ? (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600 w-fit">
-            {error}
-          </div>
-        ) : (
-          <VehicleResults
-            vehicles={filtered}
-            isSubmitted={submitted}
-            isSubmitting={isSubmitting}
-            dateRange={dateRange}
-            startTime={startTime}
-            endTime={endTime}
-          />
-        )}
+        <VehicleResults
+          vehicles={filtered}
+          isSubmitted={submitted}
+          isSubmitting={isSubmitting}
+          dateRange={dateRange}
+          startTime={startTime}
+          endTime={endTime}
+        />
       </div>
     </section>
   );

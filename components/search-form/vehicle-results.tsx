@@ -27,19 +27,10 @@ export const VehicleResults = ({
 }: VehicleResultsProps) => {
   // Regrouper les véhicules identiques
   const groupedVehicles = useMemo(() => groupVehicles(vehicles), [vehicles]);
-  const [showError, setShowError] = useState(false);
 
   if (!isSubmitted) {
-    // Check if dates are provided
-    const hasDates = dateRange?.from && dateRange?.to && startTime && endTime;
-
     return (
       <>
-        {showError && !hasDates && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600 w-fit">
-            Veuillez sélectionner vos dates de location.
-          </div>
-        )}
         <div className="mb-4 text-xl sm:text-3xl font-semibold text-black font-title">
           <span>Tous nos véhicules ({vehicles.length})</span>
         </div>
@@ -49,7 +40,9 @@ export const VehicleResults = ({
           dateRange={dateRange}
           startTime={startTime}
           endTime={endTime}
-          onClickWithoutDates={() => setShowError(true)}
+          onClickWithoutDates={() =>
+            toast.warning("Veuillez sélectionner vos dates de location.")
+          }
         />
       </>
     );
