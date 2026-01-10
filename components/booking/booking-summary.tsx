@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import type { Vehicle } from "@/types";
 import { Button } from "@/components/ui/button";
 import { DateTimePicker } from "@/components/search-form/date-time-picker";
+import { DateTimePickerMobile } from "@/components/search-form/date-time-picker-mobile";
 import { LoadingSpinner } from "@/components/loading-spinner";
 import { getPricePerDay } from "@/lib/utils";
 
@@ -21,6 +23,10 @@ export const BookingSummary = ({
   onProceedToForm,
   bookingSummaryData,
 }: BookingSummaryProps) => {
+  // États pour gérer l'affichage du calendrier mobile
+  const [showStartCalendar, setShowStartCalendar] = useState(false);
+  const [showEndCalendar, setShowEndCalendar] = useState(false);
+
   // Utiliser les données du hook partagé au niveau du parent
   const {
     dateRange,
@@ -63,36 +69,71 @@ export const BookingSummary = ({
 
       {/* Dates Section */}
       <div className="space-y-4 mb-6">
-        <DateTimePicker
-          label="Départ"
-          dateRange={dateRange}
-          onDateRangeChange={handleStartDateChange}
-          selectedTime={startTime}
-          onTimeChange={setStartTime}
-          timeSlots={availableStartTimeSlots}
-          dateValue={dateRange?.from}
-          openCalendar={openStartCalendar}
-          onOpenCalendarChange={setOpenStartCalendar}
-          disabledDates={isDateBlocked}
-          showBorder
-          calendarMode="single"
-          timePickerClassName="min-w-[90px]"
-        />
-        <DateTimePicker
-          label="Retour"
-          dateRange={dateRange}
-          onDateRangeChange={handleEndDateChange}
-          selectedTime={endTime}
-          onTimeChange={setEndTime}
-          timeSlots={availableEndTimeSlots}
-          dateValue={dateRange?.to}
-          openCalendar={openEndCalendar}
-          onOpenCalendarChange={setOpenEndCalendar}
-          disabledDates={isEndDateDisabled}
-          showBorder
-          calendarMode="range"
-          timePickerClassName="min-w-[90px]"
-        />
+        {/* Version Mobile - visible uniquement < lg (< 1024px) */}
+        <div className="lg:hidden space-y-4">
+          <DateTimePickerMobile
+            label="Date de départ"
+            dateRange={dateRange}
+            onDateRangeChange={handleStartDateChange}
+            selectedTime={startTime}
+            onTimeChange={setStartTime}
+            timeSlots={availableStartTimeSlots}
+            dateValue={dateRange?.from}
+            disabledDates={isDateBlocked}
+            calendarMode="single"
+            showCalendar={showStartCalendar}
+            setShowCalendar={setShowStartCalendar}
+            showBorder
+          />
+          <DateTimePickerMobile
+            label="Date de retour"
+            dateRange={dateRange}
+            onDateRangeChange={handleEndDateChange}
+            selectedTime={endTime}
+            onTimeChange={setEndTime}
+            timeSlots={availableEndTimeSlots}
+            dateValue={dateRange?.to}
+            disabledDates={isEndDateDisabled}
+            calendarMode="range"
+            showCalendar={showEndCalendar}
+            setShowCalendar={setShowEndCalendar}
+            showBorder
+          />
+        </div>
+
+        {/* Version Desktop - visible uniquement >= lg (>= 1024px) */}
+        <div className="hidden lg:block space-y-4">
+          <DateTimePicker
+            label="Départ"
+            dateRange={dateRange}
+            onDateRangeChange={handleStartDateChange}
+            selectedTime={startTime}
+            onTimeChange={setStartTime}
+            timeSlots={availableStartTimeSlots}
+            dateValue={dateRange?.from}
+            openCalendar={openStartCalendar}
+            onOpenCalendarChange={setOpenStartCalendar}
+            disabledDates={isDateBlocked}
+            showBorder
+            calendarMode="single"
+            timePickerClassName="min-w-[90px]"
+          />
+          <DateTimePicker
+            label="Retour"
+            dateRange={dateRange}
+            onDateRangeChange={handleEndDateChange}
+            selectedTime={endTime}
+            onTimeChange={setEndTime}
+            timeSlots={availableEndTimeSlots}
+            dateValue={dateRange?.to}
+            openCalendar={openEndCalendar}
+            onOpenCalendarChange={setOpenEndCalendar}
+            disabledDates={isEndDateDisabled}
+            showBorder
+            calendarMode="range"
+            timePickerClassName="min-w-[90px]"
+          />
+        </div>
       </div>
 
       {/* Vehicle Summary */}

@@ -27,6 +27,7 @@ interface DateTimePickerMobileProps {
   calendarMode: "single" | "range";
   showCalendar: boolean;
   setShowCalendar: (show: boolean) => void;
+  showBorder?: boolean;
 }
 
 export const DateTimePickerMobile = ({
@@ -41,6 +42,7 @@ export const DateTimePickerMobile = ({
   calendarMode,
   showCalendar,
   setShowCalendar,
+  showBorder = false,
 }: DateTimePickerMobileProps) => {
   const timeRef = useRef<HTMLButtonElement>(null);
 
@@ -58,8 +60,9 @@ export const DateTimePickerMobile = ({
             size="ghost"
             onClick={() => setShowCalendar(true)}
             className={cn(
-              "w-full justify-between text-left text-base font-normal cursor-pointer pb-3",
-              !dateValue && "text-muted-foreground"
+              "w-full justify-between text-left text-base font-normal cursor-pointer py-2",
+              !dateValue && "text-muted-foreground",
+              showBorder && "border border-gray-300 rounded-md px-2"
             )}
           >
             <div className="flex items-center gap-1">
@@ -83,7 +86,8 @@ export const DateTimePickerMobile = ({
             <SelectTrigger
               ref={timeRef}
               className={cn(
-                "w-full cursor-pointer pb-3",
+                "w-full cursor-pointer p-2",
+                showBorder && "border border-gray-300 rounded-md",
                 !selectedTime && "[&_svg]:opacity-50"
               )}
             >
