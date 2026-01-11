@@ -26,7 +26,7 @@ import { createBookingAction } from "@/actions/create-booking";
 import { checkVehicleAvailability } from "@/actions/check-vehicle-availability";
 import type { Vehicle } from "@/types";
 import type { Database } from "@/lib/supabase/database.types";
-import { toast } from "sonner";
+import { toast } from "react-hot-toast";
 
 type Agency = Database["public"]["Tables"]["agencies"]["Row"];
 
@@ -151,7 +151,7 @@ export const BookingForm = ({
         }
 
         setBookingError(message);
-        toast.warning(message);
+        toast.error(message);
         return; // Empêche la soumission
       }
 

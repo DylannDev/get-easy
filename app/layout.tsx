@@ -3,7 +3,7 @@ import { DM_Sans, Unbounded } from "next/font/google";
 import "./globals.css";
 import { Footer } from "@/components/footer";
 import { Navbar } from "@/components/navbar";
-import { Toaster } from "@/components/ui/sonner";
+import { Toaster } from "react-hot-toast";
 
 const dmsans = DM_Sans({
   variable: "--font-dmsans",
@@ -49,7 +49,17 @@ export default function RootLayout({
       <body className={`${dmsans.variable} ${unbounded.variable} antialiased`}>
         <Navbar />
         {children}
-        <Toaster />
+        <Toaster
+          position="bottom-right"
+          toastOptions={{
+            className:
+              "border border-gray-300 rounded-lg! bg-white shadow-none!",
+            error: {
+              className:
+                "border border-gray-300 rounded-lg! bg-white shadow-none! text-red-500!",
+            },
+          }}
+        />
         <Footer />
       </body>
     </html>

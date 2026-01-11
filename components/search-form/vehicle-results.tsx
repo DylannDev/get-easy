@@ -6,7 +6,7 @@ import { groupVehicles } from "@/lib/group-vehicles";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createInitiatedBooking } from "@/actions/create-initiated-booking";
-import { toast } from "sonner";
+import { toast } from "react-hot-toast";
 
 interface VehicleResultsProps {
   vehicles: Vehicle[];
@@ -41,7 +41,7 @@ export const VehicleResults = ({
           startTime={startTime}
           endTime={endTime}
           onClickWithoutDates={() =>
-            toast.warning("Veuillez sélectionner vos dates de location.")
+            toast.error("Veuillez sélectionner vos dates de location.")
           }
         />
       </>

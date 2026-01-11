@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { toast } from "sonner";
+import { toast } from "react-hot-toast";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { DateRange } from "react-day-picker";
 import type { Vehicle } from "@/types";
@@ -315,7 +315,7 @@ export const useBookingSummary = ({
             const formattedBlockedStart = formatDateTimeFR(overlap.blockedStart);
             const formattedBlockedEnd = formatDateTimeFR(overlap.blockedEnd);
 
-            toast.warning(
+            toast.error(
               `Ce véhicule est déjà réservé du ${formattedBlockedStart} au ${formattedBlockedEnd}. Veuillez sélectionner d'autres dates.`
             );
           }
