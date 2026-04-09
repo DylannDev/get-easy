@@ -1,7 +1,7 @@
 import type { Vehicle } from "@/types";
 import type { DateRange } from "react-day-picker";
 import { VehicleCard } from "@/components/vehicle-card/vehicle-card";
-import { LoadingSpinner } from "../loading-spinner";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { groupVehicles } from "@/lib/group-vehicles";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -51,17 +51,23 @@ export const VehicleResults = ({
   return (
     <>
       <h1 className="text-xl sm:text-3xl font-semibold mb-6 text-center sm:text-left">
-        Sélectionnez votre véhicule
+        {isSubmitting || vehicles.length > 0
+          ? "Sélectionnez votre véhicule"
+          : "Aucun véhicule disponible pour ces dates"}
       </h1>
       {isSubmitting ? (
         <LoadingSpinner className="py-20" />
-      ) : (
+      ) : vehicles.length > 0 ? (
         <VehicleGrid
           vehicles={groupedVehicles}
           dateRange={dateRange}
           startTime={startTime}
           endTime={endTime}
         />
+      ) : (
+        <p className="text-gray-500 text-center py-10">
+          Essayez de modifier vos dates ou heures de location.
+        </p>
       )}
     </>
   );
@@ -166,22 +172,29 @@ const VehicleGrid = ({
   }
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {vehicles.map((v) => (
-        <button
-          key={v.id}
-          type="button"
-          onClick={(e) => handleVehicleClick(e, v)}
-          disabled={isCreatingBooking === v.id}
-          className="text-left disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <VehicleCard
-            vehicle={v}
-            startDate={startDateTime}
-            endDate={endDateTime}
-          />
-        </button>
-      ))}
-    </div>
+    <>
+      {isCreatingBooking && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm">
+          <LoadingSpinner />
+        </div>
+      )}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {vehicles.map((v) => (
+          <button
+            key={v.id}
+            type="button"
+            onClick={(e) => handleVehicleClick(e, v)}
+            disabled={!!isCreatingBooking}
+            className="text-left disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <VehicleCard
+              vehicle={v}
+              startDate={startDateTime}
+              endDate={endDateTime}
+            />
+          </button>
+        ))}
+      </div>
+    </>
   );
 };

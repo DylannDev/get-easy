@@ -18,7 +18,9 @@ interface BookingPaidAdminEmailProps {
   customerEmail: string;
   phone: string;
   startDate: string;
+  startTime: string;
   endDate: string;
+  endTime: string;
   totalPrice: number;
   vehicle: {
     brand: string;
@@ -32,7 +34,9 @@ export const BookingPaidAdminEmail = ({
   customerEmail,
   phone,
   startDate,
+  startTime,
   endDate,
+  endTime,
   totalPrice,
   vehicle,
 }: BookingPaidAdminEmailProps) => {
@@ -114,19 +118,19 @@ export const BookingPaidAdminEmail = ({
 
                 <div>
                   <Text className="text-sm text-gray-500 mb-1 font-medium">
-                    Date de début
+                    Date de départ
                   </Text>
                   <Text className="text-base text-black font-semibold">
-                    {startDate}
+                    {startDate} à {startTime}
                   </Text>
                 </div>
 
                 <div>
                   <Text className="text-sm text-gray-500 mb-1 font-medium">
-                    Date de fin
+                    Date de retour
                   </Text>
                   <Text className="text-base text-black font-semibold">
-                    {endDate}
+                    {endDate} à {endTime}
                   </Text>
                 </div>
 
