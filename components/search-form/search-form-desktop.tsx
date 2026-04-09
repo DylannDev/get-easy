@@ -2,7 +2,7 @@
 
 import { Search } from "lucide-react";
 import { AgencySelect } from "@/components/search-form/agency-select";
-import { DateTimePicker } from "@/components/search-form/date-time-picker";
+import { DateTimePicker } from "@/components/date-time-picker/date-time-picker";
 import type { Agency } from "@/types";
 import type { DateRange } from "react-day-picker";
 

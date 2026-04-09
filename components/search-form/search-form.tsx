@@ -8,12 +8,12 @@ import { VehicleResults } from "@/components/search-form/vehicle-results";
 import { useSearchForm } from "@/hooks/use-search-form";
 import Image from "next/image";
 import type { Agency } from "@/types";
-import type { VehicleBooking } from "@/actions/get-vehicle-bookings";
+import type { BookingAvailabilityView } from "@/domain/vehicle";
 import { toast } from "react-hot-toast";
 
 interface SearchFormProps {
   agencies: Agency[];
-  bookingsMap: Map<string, VehicleBooking[]>;
+  bookingsMap: Map<string, BookingAvailabilityView[]>;
 }
 
 export const SearchForm = ({ agencies, bookingsMap }: SearchFormProps) => {

@@ -2,22 +2,20 @@
 
 import { useState } from "react";
 import type { Vehicle } from "@/types";
-import type { VehicleBooking } from "@/actions/get-vehicle-bookings";
-import type { Database } from "@/lib/supabase/database.types";
-import { VehicleInfo } from "./vehicle-info";
+import type { BookingAvailabilityView } from "@/domain/vehicle";
+import type { Agency } from "@/domain/agency";
+import { BookingVehicleSummary } from "./booking-vehicle-summary";
 import { BookingSummary } from "./booking-summary";
 import { BookingForm } from "./booking-form";
 import { Timeline, type TimelineStep } from "@/components/ui/timeline";
 import { useBookingSummary } from "@/hooks/use-booking-summary";
-
-type Agency = Database["public"]["Tables"]["agencies"]["Row"];
 
 interface BookingPageClientProps {
   vehicle: Vehicle;
   agency: Agency;
   startDate: Date;
   endDate: Date;
-  bookings: VehicleBooking[];
+  bookings: BookingAvailabilityView[];
   bookingId?: string;
 }
 
@@ -104,7 +102,7 @@ export const BookingPageClient = ({
               bookingId={bookingId}
             />
           ) : (
-            <VehicleInfo vehicle={vehicle} />
+            <BookingVehicleSummary vehicle={vehicle} />
           )}
         </div>
 

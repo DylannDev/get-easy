@@ -25,10 +25,8 @@ import {
 import { createBookingAction } from "@/actions/create-booking";
 import { checkVehicleAvailability } from "@/actions/check-vehicle-availability";
 import type { Vehicle } from "@/types";
-import type { Database } from "@/lib/supabase/database.types";
+import type { Agency } from "@/domain/agency";
 import { toast } from "react-hot-toast";
-
-type Agency = Database["public"]["Tables"]["agencies"]["Row"];
 
 interface BookingFormProps {
   onBack: () => void;

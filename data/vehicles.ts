@@ -18,6 +18,7 @@ export const organizations: Organization[] = [
         vehicles: [
           {
             id: "1",
+            agencyId: "remire-montjoly",
             brand: "Renault",
             model: "Clio",
             pricePerDay: 45,
@@ -44,6 +45,7 @@ export const organizations: Organization[] = [
           },
           {
             id: "2",
+            agencyId: "remire-montjoly",
             brand: "Renault",
             model: "Clio",
             pricePerDay: 45,
@@ -70,6 +72,7 @@ export const organizations: Organization[] = [
           },
           {
             id: "3",
+            agencyId: "remire-montjoly",
             brand: "Renault",
             model: "Clio",
             pricePerDay: 45,

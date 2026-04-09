@@ -3,10 +3,10 @@
 import { useState } from "react";
 import type { Vehicle } from "@/types";
 import { Button } from "@/components/ui/button";
-import { DateTimePicker } from "@/components/search-form/date-time-picker";
-import { DateTimePickerMobile } from "@/components/search-form/date-time-picker-mobile";
-import { LoadingSpinner } from "@/components/loading-spinner";
-import { getPricePerDay } from "@/lib/utils";
+import { DateTimePicker } from "@/components/date-time-picker/date-time-picker";
+import { DateTimePickerMobile } from "@/components/date-time-picker/date-time-picker-mobile";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { getApplicablePricePerDay } from "@/domain/vehicle";
 
 interface BookingSummaryProps {
   vehicle: Vehicle;
@@ -54,7 +54,7 @@ export const BookingSummary = ({
   // Calcul du tarif applicable en fonction du nombre de jours
   const applicablePricePerDay =
     vehicle.pricingTiers && numberOfDays > 0
-      ? getPricePerDay(numberOfDays, vehicle.pricingTiers)
+      ? getApplicablePricePerDay(numberOfDays, vehicle.pricingTiers)
       : vehicle.pricePerDay;
 
   // Calcul des économies réalisées

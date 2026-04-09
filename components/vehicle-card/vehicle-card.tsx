@@ -12,7 +12,8 @@ import {
   PiInfoDuotone,
 } from "react-icons/pi";
 import { VehicleDetail } from "./vehicle-detail";
-import { calculateTotalPrice, addImageCacheBusting } from "@/lib/utils";
+import { addImageCacheBusting } from "@/lib/utils";
+import { quotePrice } from "@/domain/vehicle";
 import {
   Popover,
   PopoverContent,
@@ -45,11 +46,11 @@ export const VehicleCard = ({
   let totalPrice = 0;
 
   if (hasDates) {
-    const result = calculateTotalPrice(
+    const result = quotePrice(
       startDate,
       endDate,
-      vehicle.pricePerDay,
-      vehicle.pricingTiers
+      vehicle.pricingTiers,
+      vehicle.pricePerDay
     );
     totalDays = result.totalDays;
     totalPrice = result.totalPrice;

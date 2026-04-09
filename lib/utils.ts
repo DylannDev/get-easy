@@ -2,14 +2,13 @@ import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import type { Vehicle, Agency, Organization, AgencyHours } from "@/types";
-import { organizations } from "@/data/vehicles";
+import type { OpeningHours } from "@/domain/agency";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function generateTimeSlots(hours: AgencyHours): string[] {
+export function generateTimeSlots(hours: OpeningHours): string[] {
   const slots: string[] = [];
   const [openHour, openMinute] = hours.openTime.split(":").map(Number);
   const [closeHour, closeMinute] = hours.closeTime.split(":").map(Number);
@@ -31,69 +30,6 @@ export function generateTimeSlots(hours: AgencyHours): string[] {
   }
 
   return slots;
-}
-
-export function isVehicleAvailable(
-  vehicle: Vehicle,
-  requestedStart: Date,
-  requestedEnd: Date
-): boolean {
-  if (requestedEnd <= requestedStart) return false;
-
-  // Normalise les dates de la requête à la journée (comme dans booking-summary)
-  const normalizedRequestStart = new Date(requestedStart);
-  const normalizedRequestEnd = new Date(requestedEnd);
-  normalizedRequestStart.setHours(0, 0, 0, 0);
-  normalizedRequestEnd.setHours(0, 0, 0, 0);
-
-  // Vérifie si la période demandée chevauche une période bloquée
-  // Un chevauchement existe si : requestStart <= blockEnd && requestEnd >= blockStart
-  const hasOverlap = vehicle.blockedPeriods.some((blocked) => {
-    let blockedStart = new Date(blocked.start);
-    let blockedEnd = new Date(blocked.end);
-
-    // Corrige les périodes inversées
-    if (blockedStart > blockedEnd) {
-      const tmp = blockedStart;
-      blockedStart = blockedEnd;
-      blockedEnd = tmp;
-    }
-
-    // Normalise les dates bloquées à la journée
-    blockedStart.setHours(0, 0, 0, 0);
-    blockedEnd.setHours(0, 0, 0, 0);
-
-    // Logique cohérente avec booking-summary
-    return (
-      normalizedRequestStart <= blockedEnd &&
-      normalizedRequestEnd >= blockedStart
-    );
-  });
-
-  // Le véhicule est disponible s'il n'y a AUCUN chevauchement
-  return !hasOverlap;
-}
-
-export function getAllAgencies(organizations: Organization[]): Agency[] {
-  return organizations.flatMap((org) => org.agencies);
-}
-
-export function getAgencyById(
-  organizations: Organization[],
-  agencyId: string
-): Agency | undefined {
-  return getAllAgencies(organizations).find((agency) => agency.id === agencyId);
-}
-
-// Helper function to find vehicle by ID
-export function findVehicleById(vehicleId: string): Vehicle | null {
-  for (const org of organizations) {
-    for (const agency of org.agencies) {
-      const vehicle = agency.vehicles.find((v) => v.id === vehicleId);
-      if (vehicle) return vehicle;
-    }
-  }
-  return null;
 }
 
 // Validate dates
@@ -137,67 +73,6 @@ export function validateDates(
   } catch {
     return { isValid: false };
   }
-}
-
-/**
- * Détermine le prix par jour en fonction de la durée de location et des paliers tarifaires
- *
- * @param days - Nombre de jours de location
- * @param tiers - Tableau des paliers tarifaires triés par minDays croissant
- * @returns Le prix par jour applicable
- */
-export function getPricePerDay(
-  days: number,
-  tiers: { minDays: number; pricePerDay: number }[]
-): number {
-  if (!tiers || tiers.length === 0) {
-    throw new Error("Les paliers tarifaires sont requis");
-  }
-
-  // Trouve le palier avec le minDays le plus élevé <= nombre de jours
-  let applicableTier = tiers[0];
-
-  for (const tier of tiers) {
-    if (tier.minDays <= days) {
-      applicableTier = tier;
-    } else {
-      break;
-    }
-  }
-
-  return applicableTier.pricePerDay;
-}
-
-/**
- * Calcule le prix total d'une location en fonction des dates de début et de fin
- * Tout jour entamé est dû (arrondi au jour supérieur)
- *
- * @param startDate - Date de début de location
- * @param endDate - Date de fin de location
- * @param pricePerDay - Prix par jour du véhicule (deprecated, utiliser pricingTiers)
- * @param pricingTiers - Paliers tarifaires optionnels pour tarification dégressive
- * @returns Objet contenant le nombre de jours et le prix total
- */
-export function calculateTotalPrice(
-  startDate: Date,
-  endDate: Date,
-  pricePerDay: number,
-  pricingTiers?: { minDays: number; pricePerDay: number }[]
-): { totalDays: number; totalPrice: number } {
-  // Calcul du nombre de jours (différence en millisecondes / millisecondes par jour)
-  const msPerDay = 1000 * 60 * 60 * 24;
-  const totalDays = Math.ceil(
-    (endDate.getTime() - startDate.getTime()) / msPerDay
-  );
-
-  // Utilise les paliers tarifaires si disponibles, sinon le prix fixe
-  const applicablePricePerDay = pricingTiers
-    ? getPricePerDay(totalDays, pricingTiers)
-    : pricePerDay;
-
-  const totalPrice = totalDays * applicablePricePerDay;
-
-  return { totalDays, totalPrice };
 }
 
 /**

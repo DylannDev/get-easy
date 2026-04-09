@@ -1,9 +1,7 @@
 import { redirect } from "next/navigation";
 import { validateDates } from "@/lib/utils";
 import { BookingPageClient } from "@/components/booking/booking-page-client";
-import { getVehicleById, getAgencyById } from "@/lib/supabase/queries";
-import { mapVehicleFromDB } from "@/lib/supabase/mappers";
-import { getVehicleBookings } from "@/actions/get-vehicle-bookings";
+import { getContainer } from "@/composition-root/container";
 
 interface BookingPageProps {
   params: Promise<{ vehicleId: string }>;
@@ -12,15 +10,14 @@ interface BookingPageProps {
 
 export async function generateMetadata({ params }: BookingPageProps) {
   const { vehicleId } = await params;
-  const dbVehicle = await getVehicleById(vehicleId);
+  const { vehicleRepository } = getContainer();
+  const vehicle = await vehicleRepository.findById(vehicleId);
 
-  if (!dbVehicle) {
+  if (!vehicle) {
     return {
       title: "Véhicule introuvable - Get Easy",
     };
   }
-
-  const vehicle = mapVehicleFromDB(dbVehicle);
 
   return {
     title: `Réservation ${vehicle.brand} ${vehicle.model} - Get Easy`,
@@ -35,26 +32,21 @@ export default async function BookingPage({
   const { vehicleId } = await params;
   const { start, end, bookingId } = await searchParams;
 
-  // Find vehicle from Supabase
-  const dbVehicle = await getVehicleById(vehicleId);
-  if (!dbVehicle) {
+  const { vehicleRepository, agencyRepository, bookingRepository } =
+    getContainer();
+
+  const vehicle = await vehicleRepository.findById(vehicleId);
+  if (!vehicle) {
     redirect("/");
   }
 
-  const vehicle = mapVehicleFromDB(dbVehicle);
-
-  // Récupérer l'agencyId depuis le véhicule DB
-  const agencyId = dbVehicle.agency_id;
-
-  // Récupérer l'agence pour obtenir son nom et ses horaires
-  const agency = await getAgencyById(agencyId);
-
+  const agency = await agencyRepository.findById(vehicle.agencyId);
   if (!agency) {
     redirect("/");
   }
 
-  // Récupérer les bookings du véhicule
-  const bookings = await getVehicleBookings(vehicleId);
+  const bookings =
+    await bookingRepository.findActiveAvailabilityViewsByVehicleId(vehicleId);
 
   // Parse dates from URL or use defaults
   let startDate: Date;

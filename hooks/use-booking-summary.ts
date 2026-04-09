@@ -3,26 +3,27 @@ import { toast } from "react-hot-toast";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { DateRange } from "react-day-picker";
 import type { Vehicle } from "@/types";
-import type { Database } from "@/lib/supabase/database.types";
+import type { Agency } from "@/domain/agency";
 import {
   generateTimeSlots,
-  calculateTotalPrice,
   formatDateTimeFR,
   getAvailableEndTimeSlots,
   getAvailableStartTimeSlots,
   isTodayDisabledForBooking,
 } from "@/lib/utils";
-import { getBlockedDatesForVehicle } from "@/lib/availability";
-import type { VehicleBooking } from "@/actions/get-vehicle-bookings";
-
-type Agency = Database["public"]["Tables"]["agencies"]["Row"];
+import {
+  findAvailabilityConflict,
+  getBlockedDates,
+  quotePrice,
+} from "@/domain/vehicle";
+import type { BookingAvailabilityView } from "@/domain/vehicle";
 
 interface UseBookingSummaryProps {
   vehicle: Vehicle;
   agency: Agency;
   startDate: Date;
   endDate: Date;
-  bookings?: VehicleBooking[];
+  bookings?: BookingAvailabilityView[];
 }
 
 export const useBookingSummary = ({
@@ -45,12 +46,8 @@ export const useBookingSummary = ({
 
   // Génère les créneaux horaires depuis les horaires de l'agence
   const timeSlots = useMemo(() => {
-    return generateTimeSlots({
-      openTime: agency.open_time,
-      closeTime: agency.close_time,
-      interval: agency.interval,
-    });
-  }, [agency.open_time, agency.close_time, agency.interval]);
+    return generateTimeSlots(agency.hours);
+  }, [agency.hours]);
 
   // Fonction pour trouver l'heure valide la plus proche ou la première disponible
   const findValidTimeSlot = (targetTime: string, slots: string[]): string => {
@@ -126,87 +123,26 @@ export const useBookingSummary = ({
   // En excluant le booking courant (celui de l'URL) pour permettre à l'utilisateur
   // de modifier ses dates sans être bloqué par sa propre réservation
   const blockedDates = useMemo(() => {
-    return getBlockedDatesForVehicle(vehicle, bookings, currentBookingId);
+    return getBlockedDates(vehicle, bookings, {
+      excludeBookingId: currentBookingId,
+    });
   }, [vehicle, bookings, currentBookingId]);
 
-  // Vérifie si une plage de dates chevauche une période bloquée
-  // Retourne aussi les dates réelles (avec heures) de la période bloquée qui chevauche
+  // Délègue au domaine. Adapte la signature au format historique attendu par
+  // les call-sites du hook (overlaps + blockedStart/blockedEnd avec heures).
   const rangeOverlapsBlockedPeriod = (
     from: Date,
     to: Date
   ): { overlaps: boolean; blockedStart?: Date; blockedEnd?: Date } => {
-    const normalizedFrom = new Date(from);
-    const normalizedTo = new Date(to);
-    normalizedFrom.setHours(0, 0, 0, 0);
-    normalizedTo.setHours(0, 0, 0, 0);
-
-    // 1. Vérifie les blocked_periods du véhicule
-    for (const blocked of vehicle.blockedPeriods) {
-      let blockedStart = new Date(blocked.start);
-      let blockedEnd = new Date(blocked.end);
-
-      // Corrige les périodes inversées
-      if (blockedStart > blockedEnd) {
-        [blockedStart, blockedEnd] = [blockedEnd, blockedStart];
-      }
-
-      const normalizedBlockedStart = new Date(blockedStart);
-      const normalizedBlockedEnd = new Date(blockedEnd);
-      normalizedBlockedStart.setHours(0, 0, 0, 0);
-      normalizedBlockedEnd.setHours(0, 0, 0, 0);
-
-      // Vérifie le chevauchement
-      if (
-        normalizedFrom <= normalizedBlockedEnd &&
-        normalizedTo >= normalizedBlockedStart
-      ) {
-        return {
-          overlaps: true,
-          blockedStart: blockedStart, // Retourne avec les vraies heures
-          blockedEnd: blockedEnd, // Retourne avec les vraies heures
-        };
-      }
-    }
-
-    // 2. Vérifie les bookings actifs (paid ou pending_payment)
-    for (const booking of bookings) {
-      if (!["pending_payment", "paid"].includes(booking.status)) {
-        continue;
-      }
-
-      // Ignorer le booking courant (celui de l'URL)
-      // pour permettre à l'utilisateur de modifier ses dates sans être bloqué par sa propre réservation
-      if (currentBookingId && booking.id === currentBookingId) {
-        continue;
-      }
-
-      let bookingStart = new Date(booking.start_date);
-      let bookingEnd = new Date(booking.end_date);
-
-      // Corrige les périodes inversées
-      if (bookingStart > bookingEnd) {
-        [bookingStart, bookingEnd] = [bookingEnd, bookingStart];
-      }
-
-      const normalizedBookingStart = new Date(bookingStart);
-      const normalizedBookingEnd = new Date(bookingEnd);
-      normalizedBookingStart.setHours(0, 0, 0, 0);
-      normalizedBookingEnd.setHours(0, 0, 0, 0);
-
-      // Vérifie le chevauchement
-      if (
-        normalizedFrom <= normalizedBookingEnd &&
-        normalizedTo >= normalizedBookingStart
-      ) {
-        return {
-          overlaps: true,
-          blockedStart: bookingStart, // Retourne avec les vraies heures
-          blockedEnd: bookingEnd, // Retourne avec les vraies heures
-        };
-      }
-    }
-
-    return { overlaps: false };
+    const conflict = findAvailabilityConflict(vehicle, from, to, bookings, {
+      excludeBookingId: currentBookingId,
+    });
+    if (!conflict) return { overlaps: false };
+    return {
+      overlaps: true,
+      blockedStart: conflict.start,
+      blockedEnd: conflict.end,
+    };
   };
 
   // Vérifie si une date est bloquée (prend en compte blocked_periods + bookings + today si aucun créneau disponible)
@@ -343,11 +279,11 @@ export const useBookingSummary = ({
     const fullEndDate = new Date(dateRange.to);
     fullEndDate.setHours(endHour, endMinute, 0, 0);
 
-    const result = calculateTotalPrice(
+    const result = quotePrice(
       fullStartDate,
       fullEndDate,
-      vehicle.pricePerDay,
-      vehicle.pricingTiers
+      vehicle.pricingTiers,
+      vehicle.pricePerDay
     );
     return { numberOfDays: result.totalDays, totalPrice: result.totalPrice };
   }, [

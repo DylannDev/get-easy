@@ -8,8 +8,7 @@ import {
   getAvailableStartTimeSlots,
   isTodayDisabledForBooking
 } from "@/lib/utils";
-import { isVehicleAvailableWithBookings } from "@/lib/availability";
-import type { VehicleBooking } from "@/actions/get-vehicle-bookings";
+import { isVehicleAvailable, type BookingAvailabilityView } from "@/domain/vehicle";
 
 interface SearchFormData {
   agencyId: string;
@@ -20,7 +19,7 @@ interface SearchFormData {
 
 interface UseSearchFormProps {
   agencies: Agency[];
-  bookingsMap?: Map<string, VehicleBooking[]>;
+  bookingsMap?: Map<string, BookingAvailabilityView[]>;
 }
 
 export const useSearchForm = ({ agencies, bookingsMap = new Map() }: UseSearchFormProps) => {
@@ -195,12 +194,7 @@ export const useSearchForm = ({ agencies, bookingsMap = new Map() }: UseSearchFo
 
     const available = agency.vehicles.filter((vehicle) => {
       const bookings = bookingsMap.get(vehicle.id) || [];
-      return isVehicleAvailableWithBookings(
-        vehicle,
-        startDateTime,
-        endDateTime,
-        bookings
-      );
+      return isVehicleAvailable(vehicle, startDateTime, endDateTime, bookings);
     });
     return { filtered: available, error: "" };
   }, [
