@@ -19,7 +19,7 @@ export const createSupabaseAgencyRepository = (): AgencyRepository => {
     const { data, error } = await supabase
       .from("agencies")
       .select("*")
-      .order("name");
+      .order("created_at", { ascending: true });
     if (error || !data) return [];
     return data.map((row) => toDomainAgency(row));
   };

@@ -1,5 +1,5 @@
 import type { Database } from "../database.types";
-import type { Agency } from "@/domain/agency";
+import type { Agency, WeekSchedule } from "@/domain/agency";
 import type { Vehicle } from "@/domain/vehicle";
 import {
   toDomainVehicle,
@@ -30,6 +30,11 @@ export function toDomainAgency(
       closeTime: row.close_time,
       interval: row.interval,
     },
+    phone: (row as Record<string, unknown>).phone as string | undefined,
+    email: (row as Record<string, unknown>).email as string | undefined,
+    deliveryLabel: (row as Record<string, unknown>).delivery_label as string | undefined,
+    deliveryZones: (row as Record<string, unknown>).delivery_zones as string | undefined,
+    schedule: (row as Record<string, unknown>).schedule as WeekSchedule | undefined,
     vehicles,
   };
 }
