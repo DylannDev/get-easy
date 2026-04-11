@@ -17,8 +17,34 @@ export interface CreateCustomerInput {
   driverLicenseCountry?: string | null;
 }
 
+export interface UpdateCustomerInput {
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  phone?: string;
+  birthDate?: string;
+  birthPlace?: string | null;
+  address?: string;
+  address2?: string | null;
+  postalCode?: string;
+  city?: string;
+  country?: string;
+  driverLicenseNumber?: string | null;
+  driverLicenseIssuedAt?: string | null;
+  driverLicenseCountry?: string | null;
+}
+
 export interface CustomerRepository {
   findById(customerId: string): Promise<Customer | null>;
   findByEmail(email: string): Promise<Customer | null>;
   create(input: CreateCustomerInput): Promise<Customer>;
+  findAll(params?: {
+    search?: string;
+    page?: number;
+    pageSize?: number;
+  }): Promise<{ data: Customer[]; count: number }>;
+  update(
+    customerId: string,
+    input: UpdateCustomerInput
+  ): Promise<Customer | null>;
 }
