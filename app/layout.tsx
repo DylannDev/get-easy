@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import { DM_Sans, Unbounded } from "next/font/google";
 import "./globals.css";
-import { Footer } from "@/components/layout/footer";
-import { Navbar } from "@/components/layout/navbar";
 import { Toaster } from "react-hot-toast";
 
 const dmsans = DM_Sans({
@@ -47,7 +45,6 @@ export default function RootLayout({
   return (
     <html lang="fr">
       <body className={`${dmsans.variable} ${unbounded.variable} antialiased`}>
-        <Navbar />
         {children}
         <Toaster
           position="bottom-right"
@@ -60,7 +57,6 @@ export default function RootLayout({
             },
           }}
         />
-        <Footer />
       </body>
     </html>
   );
