@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import type { DateRange } from "react-day-picker";
 import type { Vehicle, Agency } from "@/types";
@@ -9,6 +9,7 @@ import {
   isTodayDisabledForBooking
 } from "@/lib/utils";
 import { isVehicleAvailable, type BookingAvailabilityView } from "@/domain/vehicle";
+import { useAgencyStore } from "@/stores/agency-store";
 
 interface SearchFormData {
   agencyId: string;
@@ -39,6 +40,12 @@ export const useSearchForm = ({ agencies, bookingsMap = new Map() }: UseSearchFo
   const dateRange = useWatch({ control, name: "dateRange" });
   const startTime = useWatch({ control, name: "startTime" });
   const endTime = useWatch({ control, name: "endTime" });
+
+  // Sync agency selection with global store (for contact dialog)
+  const setActiveAgencyId = useAgencyStore((s) => s.setActiveAgencyId);
+  useEffect(() => {
+    if (agencyId) setActiveAgencyId(agencyId);
+  }, [agencyId, setActiveAgencyId]);
 
   const [openStartCalendar, setOpenStartCalendar] = useState(false);
   const [openEndCalendar, setOpenEndCalendar] = useState(false);
@@ -139,10 +146,17 @@ export const useSearchForm = ({ agencies, bookingsMap = new Map() }: UseSearchFo
     return agencies.flatMap((agency) => agency.vehicles);
   }, [agencies]);
 
+  // Vehicles filtered by selected agency (or all if none selected)
+  const visibleVehicles = useMemo(() => {
+    if (!agencyId) return allVehicles;
+    const agency = agencies.find((a) => a.id === agencyId);
+    return agency ? agency.vehicles : allVehicles;
+  }, [agencyId, agencies, allVehicles]);
+
   const { filtered, error } = useMemo(() => {
-    // If not submitted, show all vehicles
+    // If not submitted, show vehicles for selected agency (or all)
     if (!submitted) {
-      return { filtered: allVehicles, error: "" };
+      return { filtered: visibleVehicles, error: "" };
     }
 
     // If submitted but no agency selected, show error

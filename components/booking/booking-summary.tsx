@@ -53,9 +53,9 @@ export const BookingSummary = ({
 
   // Calcul du tarif applicable en fonction du nombre de jours
   const applicablePricePerDay =
-    vehicle.pricingTiers && numberOfDays > 0
-      ? getApplicablePricePerDay(numberOfDays, vehicle.pricingTiers)
-      : vehicle.pricePerDay;
+    vehicle.pricingTiers && vehicle.pricingTiers.length > 0 && numberOfDays > 0
+      ? getApplicablePricePerDay(numberOfDays, vehicle.pricingTiers, vehicle.pricePerDay)
+      : (vehicle.pricePerDay ?? 0);
 
   // Calcul des économies réalisées
   const savings =

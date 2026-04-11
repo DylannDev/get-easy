@@ -1,5 +1,4 @@
-import { format } from "date-fns";
-import { fr } from "date-fns/locale";
+import { formatDateCayenne } from "@/lib/format-date";
 import type { BookingRepository } from "@/domain/booking";
 import type { CustomerRepository } from "@/domain/customer";
 import type { VehicleRepository } from "@/domain/vehicle";
@@ -76,12 +75,8 @@ export const createConfirmBookingPaymentUseCase = (
       firstName: customer.firstName,
       lastName: customer.lastName,
       vehicle: { brand: vehicle.brand, model: vehicle.model },
-      startDate: format(new Date(booking.startDate), "dd MMMM yyyy", {
-        locale: fr,
-      }),
-      endDate: format(new Date(booking.endDate), "dd MMMM yyyy", {
-        locale: fr,
-      }),
+      startDate: formatDateCayenne(booking.startDate, "dd MMMM yyyy"),
+      endDate: formatDateCayenne(booking.endDate, "dd MMMM yyyy"),
       reason,
     });
   };
@@ -159,16 +154,10 @@ export const createConfirmBookingPaymentUseCase = (
     const vehicle = await deps.vehicleRepository.findById(booking.vehicleId);
 
     if (customer && vehicle) {
-      const startFormatted = format(
-        new Date(booking.startDate),
-        "dd MMMM yyyy",
-        { locale: fr }
-      );
-      const startTimeFormatted = format(new Date(booking.startDate), "HH'h'mm");
-      const endFormatted = format(new Date(booking.endDate), "dd MMMM yyyy", {
-        locale: fr,
-      });
-      const endTimeFormatted = format(new Date(booking.endDate), "HH'h'mm");
+      const startFormatted = formatDateCayenne(booking.startDate, "dd MMMM yyyy");
+      const startTimeFormatted = formatDateCayenne(booking.startDate, "HH'h'mm");
+      const endFormatted = formatDateCayenne(booking.endDate, "dd MMMM yyyy");
+      const endTimeFormatted = formatDateCayenne(booking.endDate, "HH'h'mm");
 
       await deps.notifier.sendBookingPaidToClient({
         to: customer.email,

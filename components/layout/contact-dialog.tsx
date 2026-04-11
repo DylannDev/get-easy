@@ -10,57 +10,61 @@ import {
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
 import { PiCar } from "react-icons/pi";
+import type { ContactInfo } from "./navbar";
 
-const CONTACT_INFO = {
+const DEFAULT_CONTACT: ContactInfo = {
   phone: "06 94 03 06 70",
   email: "contact@geteasylocation.com",
   address: "4 Lotissement Mortin, 97354 Rémire-Montjoly",
-  hours: "7h - 22h 7j/7",
-} as const;
-
-const CONTACT_ITEMS = [
-  {
-    id: "phone",
-    icon: FiPhone,
-    label: "Téléphone",
-    value: CONTACT_INFO.phone,
-    href: `tel:${CONTACT_INFO.phone.replace(/\s/g, "")}`,
-    clickable: true,
-  },
-  {
-    id: "email",
-    icon: FiMail,
-    label: "Email",
-    value: CONTACT_INFO.email,
-    href: `mailto:${CONTACT_INFO.email}`,
-    clickable: true,
-  },
-  {
-    id: "address",
-    icon: FiMapPin,
-    label: "Adresse",
-    value: CONTACT_INFO.address,
-    clickable: false,
-  },
-  {
-    id: "hours",
-    icon: FiClock,
-    label: "Horaires",
-    value: CONTACT_INFO.hours,
-    clickable: false,
-  },
-] as const;
-
-const DELIVERY_INFO = {
-  title: "Livraison gratuite",
-  description: "Cayenne, Rémire-Montjoly, Matoury et Aéroport",
-} as const;
+  hours: "07:00 - 22:00 7j/7",
+  deliveryLabel: "Livraison gratuite",
+  deliveryZones: "Cayenne, Rémire-Montjoly, Matoury et Aéroport",
+};
 
 interface ContactDialogProps {
   children: React.ReactNode;
+  contactInfo?: ContactInfo;
 }
 
-export const ContactDialog = ({ children }: ContactDialogProps) => {
+export const ContactDialog = ({
+  children,
+  contactInfo,
+}: ContactDialogProps) => {
+  const info = contactInfo ?? DEFAULT_CONTACT;
+
+  const contactItems = [
+    {
+      id: "phone",
+      icon: FiPhone,
+      label: "Téléphone",
+      value: info.phone,
+      href: `tel:${info.phone.replace(/\s/g, "")}`,
+      clickable: true,
+    },
+    {
+      id: "email",
+      icon: FiMail,
+      label: "Email",
+      value: info.email,
+      href: `mailto:${info.email}`,
+      clickable: true,
+    },
+    {
+      id: "address",
+      icon: FiMapPin,
+      label: "Adresse",
+      value: info.address,
+      clickable: false,
+    },
+    {
+      id: "hours",
+      icon: FiClock,
+      label: "Horaires",
+      value: info.hours,
+      clickable: false,
+    },
+  ];
+
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild suppressHydrationWarning>
@@ -77,11 +81,12 @@ export const ContactDialog = ({ children }: ContactDialogProps) => {
         </AlertDialogHeader>
 
         <div className="flex flex-col gap-4">
-          {/* Contact items */}
-          {CONTACT_ITEMS.map((item) => {
+          {contactItems.map((item) => {
             const Icon = item.icon;
             const Component = item.clickable ? "a" : "div";
-            const props = item.clickable ? { href: item.href } : {};
+            const props = item.clickable
+              ? { href: item.href as string }
+              : {};
 
             return (
               <Component
@@ -98,24 +103,23 @@ export const ContactDialog = ({ children }: ContactDialogProps) => {
                   <p className="text-xs text-gray-500 font-medium">
                     {item.label}
                   </p>
-                  <p className="text-sm font-semibold">{item.value}</p>
+                  <p className="text-sm font-semibold whitespace-pre-line">{item.value}</p>
                 </div>
               </Component>
             );
           })}
 
-          {/* Free delivery */}
-          <div className="flex items-center gap-3 p-3 rounded-lg">
-            <div className="flex items-center justify-center size-10 rounded-full bg-black">
-              <PiCar className="size-5 text-green" />
+          {info.deliveryLabel && (
+            <div className="flex items-center gap-3 p-3 rounded-lg">
+              <div className="flex items-center justify-center size-10 rounded-full bg-black">
+                <PiCar className="size-5 text-green" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold">{info.deliveryLabel}</p>
+                <p className="text-xs text-gray-500">{info.deliveryZones}</p>
+              </div>
             </div>
-            <div>
-              <p className="text-sm font-semibold">{DELIVERY_INFO.title}</p>
-              <p className="text-xs text-gray-500">
-                {DELIVERY_INFO.description}
-              </p>
-            </div>
-          </div>
+          )}
         </div>
 
         <div className="mt-4">

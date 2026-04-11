@@ -57,9 +57,10 @@ export const VehicleCard = ({
   }
 
   // Prix le plus bas (dernier palier)
-  const lowestPricePerDay = vehicle.pricingTiers
-    ? vehicle.pricingTiers[vehicle.pricingTiers.length - 1].pricePerDay
-    : vehicle.pricePerDay;
+  const lowestPricePerDay =
+    vehicle.pricingTiers && vehicle.pricingTiers.length > 0
+      ? vehicle.pricingTiers[vehicle.pricingTiers.length - 1].pricePerDay
+      : vehicle.pricePerDay ?? 0;
 
   return (
     <article className="relative flex flex-col justify-between rounded-xl border border-gray-300 bg-white px-6 py-8 cursor-pointer overflow-hidden">
