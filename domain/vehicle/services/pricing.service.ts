@@ -29,10 +29,12 @@ const MS_PER_DAY = 1000 * 60 * 60 * 24;
  */
 export function getApplicablePricePerDay(
   days: number,
-  tiers: readonly PricingTier[]
+  tiers: readonly PricingTier[],
+  fallback?: number
 ): number {
   if (!tiers || tiers.length === 0) {
-    throw new Error("Pricing tiers are required");
+    if (fallback !== undefined) return fallback;
+    return 0;
   }
 
   const sorted = [...tiers].sort((a, b) => a.minDays - b.minDays);
@@ -77,7 +79,7 @@ export function quotePrice(
   } else if (fallbackPricePerDay !== undefined) {
     pricePerDay = fallbackPricePerDay;
   } else {
-    throw new Error("Either pricingTiers or fallbackPricePerDay must be provided");
+    pricePerDay = 0;
   }
 
   return {
