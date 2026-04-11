@@ -1,4 +1,5 @@
 import type { Booking } from "./booking.entity";
+import type { BookingWithDetails } from "./booking-with-details";
 import type { BookingStatus } from "./booking-status";
 import type { BookingAvailabilityView } from "../vehicle/services/availability.service";
 
@@ -75,4 +76,41 @@ export interface BookingRepository {
     input: UpdateBookingInput,
     options?: { expectedStatuses?: BookingStatus[] }
   ): Promise<Booking | null>;
+
+  // ── Admin queries ─────────────────────────────────────────────
+
+  /**
+   * Returns bookings with customer/vehicle details, with filtering,
+   * sorting, and pagination. Used by the admin reservations list.
+   */
+  findAllWithDetails(params: {
+    page: number;
+    pageSize: number;
+    agencyId?: string;
+    statuses?: BookingStatus[];
+    search?: string;
+    startDate?: string;
+    endDate?: string;
+    sort?: { field: string; direction: "asc" | "desc" };
+  }): Promise<{ data: BookingWithDetails[]; count: number }>;
+
+  /**
+   * Counts bookings matching the given statuses.
+   */
+  countByStatuses(statuses: BookingStatus[], agencyId?: string): Promise<number>;
+
+  /**
+   * Counts paid bookings where start_date <= now and end_date >= now.
+   */
+  countActiveRentals(agencyId?: string): Promise<number>;
+
+  /**
+   * Returns bookings (with details) whose start_date falls on the given date.
+   */
+  findDeparturesByDate(date: string, agencyId?: string): Promise<BookingWithDetails[]>;
+
+  /**
+   * Returns bookings (with details) whose end_date falls on the given date.
+   */
+  findReturnsByDate(date: string, agencyId?: string): Promise<BookingWithDetails[]>;
 }

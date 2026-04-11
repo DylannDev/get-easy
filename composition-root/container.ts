@@ -47,6 +47,18 @@ import {
   createVerifyCheckoutSessionUseCase,
   type VerifyCheckoutSessionUseCase,
 } from "@/application/booking/verify-checkout-session.use-case";
+import {
+  createGetDashboardSummaryUseCase,
+  type GetDashboardSummaryUseCase,
+} from "@/application/admin/get-dashboard-summary.use-case";
+import {
+  createGetPlanningDataUseCase,
+  type GetPlanningDataUseCase,
+} from "@/application/admin/get-planning-data.use-case";
+import {
+  createGetStatisticsUseCase,
+  type GetStatisticsUseCase,
+} from "@/application/admin/get-statistics.use-case";
 
 export interface Container {
   // Repositories
@@ -67,6 +79,9 @@ export interface Container {
   handlePaymentFailedUseCase: HandlePaymentFailedUseCase;
   recordRefundedChargeUseCase: RecordRefundedChargeUseCase;
   verifyCheckoutSessionUseCase: VerifyCheckoutSessionUseCase;
+  getDashboardSummaryUseCase: GetDashboardSummaryUseCase;
+  getPlanningDataUseCase: GetPlanningDataUseCase;
+  getStatisticsUseCase: GetStatisticsUseCase;
 }
 
 let cachedContainer: Container | null = null;
@@ -128,6 +143,15 @@ export const getContainer = (): Container => {
     metadataReader: paymentGateway,
   });
 
+  const getDashboardSummaryUseCase = createGetDashboardSummaryUseCase({
+    bookingRepository,
+  });
+
+  const getPlanningDataUseCase = createGetPlanningDataUseCase({
+    vehicleRepository,
+    bookingRepository,
+  });
+
   cachedContainer = {
     vehicleRepository,
     agencyRepository,
@@ -142,6 +166,12 @@ export const getContainer = (): Container => {
     handlePaymentFailedUseCase,
     recordRefundedChargeUseCase,
     verifyCheckoutSessionUseCase,
+    getDashboardSummaryUseCase,
+    getPlanningDataUseCase,
+    getStatisticsUseCase: createGetStatisticsUseCase({
+      bookingRepository,
+      vehicleRepository,
+    }),
   };
   return cachedContainer;
 };

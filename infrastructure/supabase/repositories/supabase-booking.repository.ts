@@ -1,7 +1,8 @@
 import { createAdminClient } from "../client";
-import { toDomainBooking } from "../mappers";
+import { toDomainBooking, toDomainBookingWithDetails } from "../mappers";
 import type {
   Booking,
+  BookingWithDetails,
   BookingRepository,
   BookingStatus,
   CreateBookingInput,
@@ -134,6 +135,145 @@ export const createSupabaseBookingRepository = (): BookingRepository => {
     return toDomainBooking(data);
   };
 
+  // ── Admin queries ─────────────────────────────────────────────
+
+  const BOOKING_WITH_DETAILS_SELECT =
+    "*, customers(first_name, last_name, email, phone), vehicles(brand, model, color)";
+
+  const findAllWithDetails = async (params: {
+    page: number;
+    pageSize: number;
+    agencyId?: string;
+    statuses?: BookingStatus[];
+    search?: string;
+    startDate?: string;
+    endDate?: string;
+    sort?: { field: string; direction: "asc" | "desc" };
+  }): Promise<{ data: BookingWithDetails[]; count: number }> => {
+    const supabase = createAdminClient();
+    const hasSearch = !!params.search;
+
+    let query = supabase
+      .from("bookings")
+      .select(BOOKING_WITH_DETAILS_SELECT, { count: "exact" });
+
+    if (params.agencyId) {
+      query = query.eq("agency_id", params.agencyId);
+    }
+    if (params.statuses && params.statuses.length > 0) {
+      query = query.in("status", params.statuses);
+    }
+    if (params.startDate) {
+      query = query.gte("start_date", params.startDate);
+    }
+    if (params.endDate) {
+      query = query.lte("end_date", params.endDate);
+    }
+
+    const sortField = params.sort?.field ?? "created_at";
+    const sortDir = params.sort?.direction ?? "desc";
+    query = query.order(sortField, { ascending: sortDir === "asc" });
+
+    // When searching, fetch all rows so we can filter across joined fields,
+    // then paginate in JS. Without search, paginate at DB level.
+    if (!hasSearch) {
+      const from = (params.page - 1) * params.pageSize;
+      const to = from + params.pageSize - 1;
+      query = query.range(from, to);
+    }
+
+    const { data, error, count } = await query;
+    if (error || !data) return { data: [], count: 0 };
+
+    let results = data.map(toDomainBookingWithDetails);
+
+    if (hasSearch) {
+      const s = params.search!.toLowerCase();
+      results = results.filter(
+        (b) =>
+          b.customerFirstName.toLowerCase().includes(s) ||
+          b.customerLastName.toLowerCase().includes(s) ||
+          b.customerEmail.toLowerCase().includes(s) ||
+          b.id.toLowerCase().includes(s)
+      );
+
+      const total = results.length;
+      const from = (params.page - 1) * params.pageSize;
+      results = results.slice(from, from + params.pageSize);
+      return { data: results, count: total };
+    }
+
+    return { data: results, count: count ?? 0 };
+  };
+
+  const countByStatuses = async (
+    statuses: BookingStatus[],
+    agencyId?: string
+  ): Promise<number> => {
+    const supabase = createAdminClient();
+    let query = supabase
+      .from("bookings")
+      .select("id", { count: "exact", head: true })
+      .in("status", statuses);
+    if (agencyId) query = query.eq("agency_id", agencyId);
+    const { count, error } = await query;
+    if (error) return 0;
+    return count ?? 0;
+  };
+
+  const countActiveRentals = async (agencyId?: string): Promise<number> => {
+    const supabase = createAdminClient();
+    const now = new Date().toISOString();
+    let query = supabase
+      .from("bookings")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "paid")
+      .lte("start_date", now)
+      .gte("end_date", now);
+    if (agencyId) query = query.eq("agency_id", agencyId);
+    const { count, error } = await query;
+    if (error) return 0;
+    return count ?? 0;
+  };
+
+  const findDeparturesByDate = async (
+    date: string,
+    agencyId?: string
+  ): Promise<BookingWithDetails[]> => {
+    const supabase = createAdminClient();
+    const dayStart = `${date}T00:00:00`;
+    const dayEnd = `${date}T23:59:59`;
+    let query = supabase
+      .from("bookings")
+      .select(BOOKING_WITH_DETAILS_SELECT)
+      .gte("start_date", dayStart)
+      .lte("start_date", dayEnd)
+      .in("status", ["paid", "pending_payment"]);
+    if (agencyId) query = query.eq("agency_id", agencyId);
+    const { data, error } = await query;
+    if (error || !data) return [];
+    return data.map(toDomainBookingWithDetails);
+  };
+
+  const findReturnsByDate = async (
+    date: string,
+    agencyId?: string
+  ): Promise<BookingWithDetails[]> => {
+    const supabase = createAdminClient();
+    const dayStart = `${date}T00:00:00`;
+    const dayEnd = `${date}T23:59:59`;
+    let query = supabase
+      .from("bookings")
+      .select(BOOKING_WITH_DETAILS_SELECT)
+      .gte("end_date", dayStart)
+      .lte("end_date", dayEnd)
+      .in("status", ["paid", "pending_payment"]);
+    if (agencyId) query = query.eq("agency_id", agencyId);
+    const { data, error } = await query;
+    if (error || !data) return [];
+    return data.map(toDomainBookingWithDetails);
+  };
+
   return {
     findById,
     findActiveAvailabilityViewsByVehicleId,
@@ -141,5 +281,10 @@ export const createSupabaseBookingRepository = (): BookingRepository => {
     findPaidConflicts,
     create,
     update,
+    findAllWithDetails,
+    countByStatuses,
+    countActiveRentals,
+    findDeparturesByDate,
+    findReturnsByDate,
   };
 };
