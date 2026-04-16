@@ -46,6 +46,23 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  // Validate `active_agency_id` cookie against DB. If it points to a deleted
+  // agency, clear it so subsequent calls to getActiveAgency() fall back to
+  // the first existing agency instead of dragging a stale id through requests.
+  if (user && !isLoginPage) {
+    const activeAgencyCookie = request.cookies.get("active_agency_id")?.value;
+    if (activeAgencyCookie) {
+      const { data: agency } = await supabase
+        .from("agencies")
+        .select("id")
+        .eq("id", activeAgencyCookie)
+        .maybeSingle();
+      if (!agency) {
+        supabaseResponse.cookies.delete("active_agency_id");
+      }
+    }
+  }
+
   return supabaseResponse;
 }
 

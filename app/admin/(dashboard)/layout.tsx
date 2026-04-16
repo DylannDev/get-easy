@@ -29,7 +29,7 @@ export default async function AdminDashboardLayout({
   }));
 
   return (
-    <SidebarProvider>
+    <SidebarProvider className="h-dvh">
       <AdminSidebarWrapper
         email={session.email}
         agencies={agencyInfos}
