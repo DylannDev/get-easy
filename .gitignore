@@ -41,3 +41,7 @@ yarn-error.log*
 next-env.d.ts
 
 .cursor
+
+# Internal planning docs (not tracked in git)
+DASHBOARD_PLAN.md
+SAAS_ROADMAP.md
