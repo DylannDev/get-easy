@@ -1,10 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { Vehicle } from "@/types";
 import type { BookingAvailabilityView } from "@/domain/vehicle";
 import type { Agency } from "@/domain/agency";
+import type { Option } from "@/domain/option";
+import { computeOptionsTotal } from "@/domain/option";
 import { BookingVehicleSummary } from "./booking-vehicle-summary";
+import { BookingOptionsSelector } from "./booking-options-selector";
 import { BookingSummary } from "./booking-summary";
 import { BookingForm } from "./booking-form";
 import { Timeline, type TimelineStep } from "@/components/ui/timeline";
@@ -17,6 +20,7 @@ interface BookingPageClientProps {
   endDate: Date;
   bookings: BookingAvailabilityView[];
   bookingId?: string;
+  options: Option[];
 }
 
 const BOOKING_STEPS: TimelineStep[] = [
@@ -33,9 +37,15 @@ export const BookingPageClient = ({
   endDate,
   bookings,
   bookingId,
+  options,
 }: BookingPageClientProps) => {
   const [currentStep, setCurrentStep] = useState(1); // Démarre à l'étape 1 (Conditions et récapitulatif)
   const [showForm, setShowForm] = useState(false);
+
+  // Quantités sélectionnées par option (0 = non sélectionnée)
+  const [selectedOptions, setSelectedOptions] = useState<Record<string, number>>(
+    {}
+  );
 
   // Utiliser le hook useBookingSummary au niveau parent pour partager l'état entre BookingSummary et BookingForm
   const bookingSummaryData = useBookingSummary({
@@ -45,6 +55,41 @@ export const BookingPageClient = ({
     endDate,
     bookings,
   });
+
+  // Total des options selon la durée courante
+  const optionsTotal = useMemo(() => {
+    const lines = options
+      .map((o) => {
+        const qty = selectedOptions[o.id] ?? 0;
+        if (qty <= 0) return null;
+        return {
+          unitPrice: o.price,
+          priceType: o.priceType,
+          quantity: qty,
+        };
+      })
+      .filter((l): l is NonNullable<typeof l> => l !== null);
+    return computeOptionsTotal(lines, bookingSummaryData.numberOfDays);
+  }, [options, selectedOptions, bookingSummaryData.numberOfDays]);
+
+  const grandTotal = bookingSummaryData.totalPrice + optionsTotal;
+
+  const handleOptionChange = (optionId: string, quantity: number) => {
+    setSelectedOptions((prev) => {
+      const next = { ...prev };
+      if (quantity <= 0) {
+        delete next[optionId];
+      } else {
+        next[optionId] = quantity;
+      }
+      return next;
+    });
+  };
+
+  // Liste d'options sélectionnées à envoyer au backend
+  const selectedOptionsPayload = Object.entries(selectedOptions)
+    .filter(([, qty]) => qty > 0)
+    .map(([optionId, quantity]) => ({ optionId, quantity }));
 
   const handleStepClick = (stepId: number) => {
     setCurrentStep(stepId);
@@ -98,11 +143,20 @@ export const BookingPageClient = ({
               startDate={startDate}
               endDate={endDate}
               numberOfDays={bookingSummaryData.numberOfDays}
-              totalPrice={bookingSummaryData.totalPrice}
+              totalPrice={grandTotal}
+              selectedOptions={selectedOptionsPayload}
               bookingId={bookingId}
             />
           ) : (
-            <BookingVehicleSummary vehicle={vehicle} />
+            <div className="space-y-6">
+              <BookingVehicleSummary vehicle={vehicle} />
+              <BookingOptionsSelector
+                options={options}
+                selected={selectedOptions}
+                onChange={handleOptionChange}
+                numberOfDays={bookingSummaryData.numberOfDays}
+              />
+            </div>
           )}
         </div>
 
@@ -115,6 +169,9 @@ export const BookingPageClient = ({
             currentStep={currentStep}
             onProceedToForm={handleProceedToForm}
             bookingSummaryData={bookingSummaryData}
+            options={options}
+            selectedOptions={selectedOptions}
+            optionsTotal={optionsTotal}
           />
         </div>
       </div>

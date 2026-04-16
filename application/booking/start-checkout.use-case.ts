@@ -8,6 +8,7 @@ import type {
   PaymentGateway,
   PaymentRepository,
 } from "@/domain/payment";
+import type { OptionRepository } from "@/domain/option";
 import { PaymentStatus } from "@/domain/payment";
 import { BookingStatus } from "@/domain/booking";
 
@@ -32,6 +33,11 @@ export interface CheckoutCustomerData {
   driverLicenseCountry?: string | null;
 }
 
+export interface SelectedOptionInput {
+  optionId: string;
+  quantity: number;
+}
+
 export interface StartCheckoutInput {
   customerData: CheckoutCustomerData;
   vehicleId: string;
@@ -41,6 +47,8 @@ export interface StartCheckoutInput {
   startDate: Date;
   endDate: Date;
   totalPrice: number;
+  /** Options selected by the customer. Empty if none. */
+  selectedOptions?: SelectedOptionInput[];
   /** Booking id from the `initiated` step (optional). */
   bookingId?: string;
   /** Origin URL used to build success/cancel redirect URLs. */
@@ -60,6 +68,7 @@ interface StartCheckoutDeps {
   bookingRepository: BookingRepository;
   paymentRepository: PaymentRepository;
   paymentGateway: PaymentGateway;
+  optionRepository: OptionRepository;
 }
 
 const PENDING_PAYMENT_TTL_MS = 10 * 60 * 1000;
@@ -210,7 +219,30 @@ export const createStartCheckoutUseCase = (deps: StartCheckoutDeps) => {
         });
       }
 
-      // 3. Drop stale payments for this booking
+      // 3. Attach selected options (snapshot current price/name/type).
+      //    Always detach first to handle the re-checkout case cleanly.
+      await deps.optionRepository.detachAllFromBooking(booking.id);
+      const selectedOptions = input.selectedOptions ?? [];
+      for (const selected of selectedOptions) {
+        const option = await deps.optionRepository.findById(selected.optionId);
+        if (!option || !option.active || option.agencyId !== input.agencyId) {
+          return {
+            success: false,
+            error: "Une des options sélectionnées n'est plus disponible.",
+          };
+        }
+        const qty = Math.max(1, Math.min(option.maxQuantity, selected.quantity));
+        await deps.optionRepository.attachToBooking({
+          bookingId: booking.id,
+          optionId: option.id,
+          quantity: qty,
+          unitPriceSnapshot: option.price,
+          priceTypeSnapshot: option.priceType,
+          nameSnapshot: option.name,
+        });
+      }
+
+      // 4. Drop stale payments for this booking
       if (input.bookingId) {
         await deps.paymentRepository.deleteCreatedByBookingId(booking.id);
       }

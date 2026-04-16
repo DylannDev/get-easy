@@ -13,6 +13,7 @@ interface CreateBookingParams {
   startDate: Date;
   endDate: Date;
   totalPrice: number;
+  selectedOptions?: { optionId: string; quantity: number }[];
   /** Booking id from the `initiated` step (optional). */
   bookingId?: string;
 }
@@ -48,6 +49,7 @@ export async function createBookingAction(
     startDate: params.startDate,
     endDate: params.endDate,
     totalPrice: params.totalPrice,
+    selectedOptions: params.selectedOptions,
     bookingId: params.bookingId,
     origin,
   });

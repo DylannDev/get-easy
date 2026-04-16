@@ -13,4 +13,7 @@ export * from "./organization";
 export * from "./booking";
 export * from "./customer";
 export * from "./payment";
+export * from "./option";
+export * from "./document";
+export * from "./contract";
 export * from "./shared/date-range.vo";

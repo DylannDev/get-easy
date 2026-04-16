@@ -1,3 +1,6 @@
-export type { Agency, DaySchedule, WeekSchedule, TimeSlot } from "./agency.entity";
+export type { Agency, DaySchedule, WeekSchedule, TimeSlot, RichTextDocument } from "./agency.entity";
 export type { OpeningHours } from "./opening-hours.vo";
-export type { AgencyRepository } from "./agency.repository";
+export type {
+  AgencyRepository,
+  UpdateAgencyLegalInput,
+} from "./agency.repository";

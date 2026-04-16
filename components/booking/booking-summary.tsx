@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import type { Vehicle } from "@/types";
+import type { Option } from "@/domain/option";
 import { Button } from "@/components/ui/button";
 import { DateTimePicker } from "@/components/date-time-picker/date-time-picker";
 import { DateTimePickerMobile } from "@/components/date-time-picker/date-time-picker-mobile";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { getApplicablePricePerDay } from "@/domain/vehicle";
+import { computeOptionLineTotal } from "@/domain/option";
 
 interface BookingSummaryProps {
   vehicle: Vehicle;
@@ -15,6 +17,9 @@ interface BookingSummaryProps {
   bookingSummaryData: ReturnType<
     typeof import("@/hooks/use-booking-summary").useBookingSummary
   >;
+  options?: Option[];
+  selectedOptions?: Record<string, number>;
+  optionsTotal?: number;
 }
 
 export const BookingSummary = ({
@@ -22,6 +27,9 @@ export const BookingSummary = ({
   currentStep = 1,
   onProceedToForm,
   bookingSummaryData,
+  options = [],
+  selectedOptions = {},
+  optionsTotal = 0,
 }: BookingSummaryProps) => {
   // États pour gérer l'affichage du calendrier mobile
   const [showStartCalendar, setShowStartCalendar] = useState(false);
@@ -181,6 +189,29 @@ export const BookingSummary = ({
               </span>
             </div>
           )}
+
+          {/* Lignes options sélectionnées */}
+          {options.map((option) => {
+            const qty = selectedOptions[option.id] ?? 0;
+            if (qty <= 0) return null;
+            const line = computeOptionLineTotal(
+              {
+                unitPrice: option.price,
+                priceType: option.priceType,
+                quantity: qty,
+              },
+              numberOfDays
+            );
+            return (
+              <div key={option.id} className="flex justify-between text-sm">
+                <span className="text-gray-600">
+                  {option.name}
+                  {qty > 1 ? ` ×${qty}` : ""}
+                </span>
+                <span className="font-semibold">{line.toFixed(2)} €</span>
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -190,7 +221,7 @@ export const BookingSummary = ({
           <h4 className="text-lg font-semibold">Total</h4>
           <div className="flex items-center">
             <span className="text-2xl font-bold text-black">
-              {totalPrice.toLocaleString("fr-FR")} €
+              {(totalPrice + optionsTotal).toLocaleString("fr-FR")} €
             </span>
           </div>
         </div>

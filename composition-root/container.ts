@@ -12,6 +12,9 @@ import {
   createSupabaseBookingRepository,
   createSupabaseCustomerRepository,
   createSupabasePaymentRepository,
+  createSupabaseOptionRepository,
+  createSupabaseDocumentRepository,
+  createSupabaseContractFieldsRepository,
 } from "@/infrastructure/supabase/repositories";
 import { createStripePaymentGateway } from "@/infrastructure/stripe";
 import { createResendNotifier } from "@/infrastructure/resend";
@@ -21,7 +24,66 @@ import type { AgencyRepository } from "@/domain/agency";
 import type { BookingRepository } from "@/domain/booking";
 import type { CustomerRepository } from "@/domain/customer";
 import type { PaymentRepository, PaymentGateway } from "@/domain/payment";
+import type { OptionRepository } from "@/domain/option";
+import type { DocumentRepository } from "@/domain/document";
+import type { ContractFieldsRepository } from "@/domain/contract";
 import type { Notifier } from "@/application/notifications/notification.port";
+
+import {
+  createListOptionsUseCase,
+  type ListOptionsUseCase,
+} from "@/application/admin/options/list-options.use-case";
+import {
+  createCreateOptionUseCase,
+  type CreateOptionUseCase,
+} from "@/application/admin/options/create-option.use-case";
+import {
+  createUpdateOptionUseCase,
+  type UpdateOptionUseCase,
+} from "@/application/admin/options/update-option.use-case";
+import {
+  createDeleteOptionUseCase,
+  type DeleteOptionUseCase,
+} from "@/application/admin/options/delete-option.use-case";
+import {
+  createUpdateAgencyTermsUseCase,
+  type UpdateAgencyTermsUseCase,
+} from "@/application/admin/update-agency-terms.use-case";
+import {
+  createUpdateAgencyDetailsUseCase,
+  type UpdateAgencyDetailsUseCase,
+} from "@/application/admin/update-agency-details.use-case";
+import {
+  createUploadDocumentUseCase,
+  type UploadDocumentUseCase,
+} from "@/application/admin/documents/upload-document.use-case";
+import {
+  createListDocumentsUseCase,
+  type ListDocumentsUseCase,
+} from "@/application/admin/documents/list-documents.use-case";
+import {
+  createDeleteDocumentUseCase,
+  type DeleteDocumentUseCase,
+} from "@/application/admin/documents/delete-document.use-case";
+import {
+  createGetDocumentSignedUrlUseCase,
+  type GetDocumentSignedUrlUseCase,
+} from "@/application/admin/documents/get-document-signed-url.use-case";
+import {
+  createGenerateInvoiceUseCase,
+  type GenerateInvoiceUseCase,
+} from "@/application/admin/documents/generate-invoice.use-case";
+import { createSupabaseInvoiceNumberAllocator } from "@/infrastructure/supabase/services/invoice-number-allocator";
+import { createReactPdfInvoiceRenderer } from "@/infrastructure/pdf/invoice-pdf-renderer";
+import {
+  createGenerateContractUseCase,
+  type GenerateContractUseCase,
+} from "@/application/admin/documents/generate-contract.use-case";
+import {
+  createSaveContractFieldsUseCase,
+  type SaveContractFieldsUseCase,
+} from "@/application/admin/documents/save-contract-fields.use-case";
+import { createReactPdfContractRenderer } from "@/infrastructure/pdf/contract-pdf-renderer";
 
 import {
   createInitiateBookingUseCase,
@@ -67,6 +129,9 @@ export interface Container {
   bookingRepository: BookingRepository;
   customerRepository: CustomerRepository;
   paymentRepository: PaymentRepository;
+  optionRepository: OptionRepository;
+  documentRepository: DocumentRepository;
+  contractFieldsRepository: ContractFieldsRepository;
 
   // Adapters
   paymentGateway: PaymentGateway;
@@ -82,6 +147,19 @@ export interface Container {
   getDashboardSummaryUseCase: GetDashboardSummaryUseCase;
   getPlanningDataUseCase: GetPlanningDataUseCase;
   getStatisticsUseCase: GetStatisticsUseCase;
+  listOptionsUseCase: ListOptionsUseCase;
+  createOptionUseCase: CreateOptionUseCase;
+  updateOptionUseCase: UpdateOptionUseCase;
+  deleteOptionUseCase: DeleteOptionUseCase;
+  updateAgencyTermsUseCase: UpdateAgencyTermsUseCase;
+  updateAgencyDetailsUseCase: UpdateAgencyDetailsUseCase;
+  uploadDocumentUseCase: UploadDocumentUseCase;
+  listDocumentsUseCase: ListDocumentsUseCase;
+  deleteDocumentUseCase: DeleteDocumentUseCase;
+  getDocumentSignedUrlUseCase: GetDocumentSignedUrlUseCase;
+  generateInvoiceUseCase: GenerateInvoiceUseCase;
+  generateContractUseCase: GenerateContractUseCase;
+  saveContractFieldsUseCase: SaveContractFieldsUseCase;
 }
 
 let cachedContainer: Container | null = null;
@@ -95,6 +173,9 @@ export const getContainer = (): Container => {
   const bookingRepository = createSupabaseBookingRepository();
   const customerRepository = createSupabaseCustomerRepository();
   const paymentRepository = createSupabasePaymentRepository();
+  const optionRepository = createSupabaseOptionRepository();
+  const documentRepository = createSupabaseDocumentRepository();
+  const contractFieldsRepository = createSupabaseContractFieldsRepository();
 
   // Adapters — env access happens here, in the composition root.
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -116,7 +197,19 @@ export const getContainer = (): Container => {
     bookingRepository,
     paymentRepository,
     paymentGateway,
+    optionRepository,
   });
+  const generateInvoiceUseCase = createGenerateInvoiceUseCase({
+    bookingRepository,
+    customerRepository,
+    vehicleRepository,
+    agencyRepository,
+    optionRepository,
+    documentRepository,
+    numberAllocator: createSupabaseInvoiceNumberAllocator(),
+    pdfRenderer: createReactPdfInvoiceRenderer(),
+  });
+
   const confirmBookingPaymentUseCase = createConfirmBookingPaymentUseCase({
     bookingRepository,
     paymentRepository,
@@ -125,6 +218,7 @@ export const getContainer = (): Container => {
     paymentGateway,
     notifier,
     adminEmail,
+    generateInvoice: (bookingId) => generateInvoiceUseCase.execute(bookingId),
   });
   const handlePaymentFailedUseCase = createHandlePaymentFailedUseCase({
     bookingRepository,
@@ -152,12 +246,26 @@ export const getContainer = (): Container => {
     bookingRepository,
   });
 
+  const generateContractUseCase = createGenerateContractUseCase({
+    bookingRepository,
+    customerRepository,
+    vehicleRepository,
+    agencyRepository,
+    optionRepository,
+    documentRepository,
+    contractFieldsRepository,
+    pdfRenderer: createReactPdfContractRenderer(),
+  });
+
   cachedContainer = {
     vehicleRepository,
     agencyRepository,
     bookingRepository,
     customerRepository,
     paymentRepository,
+    optionRepository,
+    documentRepository,
+    contractFieldsRepository,
     paymentGateway,
     notifier,
     initiateBookingUseCase,
@@ -171,6 +279,28 @@ export const getContainer = (): Container => {
     getStatisticsUseCase: createGetStatisticsUseCase({
       bookingRepository,
       vehicleRepository,
+    }),
+    listOptionsUseCase: createListOptionsUseCase({ optionRepository }),
+    createOptionUseCase: createCreateOptionUseCase({ optionRepository }),
+    updateOptionUseCase: createUpdateOptionUseCase({ optionRepository }),
+    deleteOptionUseCase: createDeleteOptionUseCase({ optionRepository }),
+    updateAgencyTermsUseCase: createUpdateAgencyTermsUseCase({
+      agencyRepository,
+    }),
+    updateAgencyDetailsUseCase: createUpdateAgencyDetailsUseCase({
+      agencyRepository,
+    }),
+    uploadDocumentUseCase: createUploadDocumentUseCase({ documentRepository }),
+    listDocumentsUseCase: createListDocumentsUseCase({ documentRepository }),
+    deleteDocumentUseCase: createDeleteDocumentUseCase({ documentRepository }),
+    getDocumentSignedUrlUseCase: createGetDocumentSignedUrlUseCase({
+      documentRepository,
+    }),
+    generateInvoiceUseCase,
+    generateContractUseCase,
+    saveContractFieldsUseCase: createSaveContractFieldsUseCase({
+      contractFieldsRepository,
+      generateContractUseCase,
     }),
   };
   return cachedContainer;

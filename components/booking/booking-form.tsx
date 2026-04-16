@@ -36,6 +36,7 @@ interface BookingFormProps {
   endDate: Date;
   numberOfDays: number;
   totalPrice: number;
+  selectedOptions?: { optionId: string; quantity: number }[];
   bookingId?: string;
 }
 
@@ -47,6 +48,7 @@ export const BookingForm = ({
   endDate,
   numberOfDays,
   totalPrice,
+  selectedOptions,
   bookingId,
 }: BookingFormProps) => {
   // Extraire agencyId et agencyName depuis l'objet agency
@@ -163,6 +165,7 @@ export const BookingForm = ({
         startDate,
         endDate,
         totalPrice,
+        selectedOptions,
         bookingId, // Passer le bookingId pour mettre à jour le booking "initiated"
       });
 
@@ -441,7 +444,7 @@ export const BookingForm = ({
               <label htmlFor="acceptTerms" className="text-sm cursor-pointer">
                 J'accepte les{" "}
                 <Link
-                  href="/conditions-generales-de-location"
+                  href={`/conditions-generales-de-location?agency=${agencyId}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-black font-bold hover:underline"

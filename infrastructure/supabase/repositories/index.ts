@@ -3,3 +3,6 @@ export { createSupabaseAgencyRepository } from "./supabase-agency.repository";
 export { createSupabaseBookingRepository } from "./supabase-booking.repository";
 export { createSupabaseCustomerRepository } from "./supabase-customer.repository";
 export { createSupabasePaymentRepository } from "./supabase-payment.repository";
+export { createSupabaseOptionRepository } from "./supabase-option.repository";
+export { createSupabaseDocumentRepository } from "./supabase-document.repository";
+export { createSupabaseContractFieldsRepository } from "./supabase-contract-fields.repository";

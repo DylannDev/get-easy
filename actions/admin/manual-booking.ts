@@ -22,10 +22,12 @@ interface ManualBookingInput {
     city: string;
     country: string;
   };
+  selectedOptions?: { optionId: string; quantity: number }[];
 }
 
 export async function createManualBooking(input: ManualBookingInput) {
-  const { customerRepository, bookingRepository } = getContainer();
+  const { customerRepository, bookingRepository, optionRepository } =
+    getContainer();
 
   // Find or create customer
   let customer = await customerRepository.findByEmail(input.customer.email);
@@ -36,7 +38,7 @@ export async function createManualBooking(input: ManualBookingInput) {
   }
 
   // Create booking as paid directly
-  await bookingRepository.create({
+  const booking = await bookingRepository.create({
     customerId: customer.id,
     vehicleId: input.vehicleId,
     agencyId: input.agencyId,
@@ -45,6 +47,23 @@ export async function createManualBooking(input: ManualBookingInput) {
     totalPrice: input.totalPrice,
     status: BookingStatus.Paid,
   });
+
+  // Attach selected options with server-side snapshots
+  for (const selected of input.selectedOptions ?? []) {
+    const option = await optionRepository.findById(selected.optionId);
+    if (!option || !option.active || option.agencyId !== input.agencyId) {
+      continue;
+    }
+    const qty = Math.max(1, Math.min(option.maxQuantity, selected.quantity));
+    await optionRepository.attachToBooking({
+      bookingId: booking.id,
+      optionId: option.id,
+      quantity: qty,
+      unitPriceSnapshot: option.price,
+      priceTypeSnapshot: option.priceType,
+      nameSnapshot: option.name,
+    });
+  }
 
   revalidatePath("/admin");
   revalidatePath("/admin/reservations");

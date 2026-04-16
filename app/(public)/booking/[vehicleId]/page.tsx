@@ -32,8 +32,12 @@ export default async function BookingPage({
   const { vehicleId } = await params;
   const { start, end, bookingId } = await searchParams;
 
-  const { vehicleRepository, agencyRepository, bookingRepository } =
-    getContainer();
+  const {
+    vehicleRepository,
+    agencyRepository,
+    bookingRepository,
+    optionRepository,
+  } = getContainer();
 
   const vehicle = await vehicleRepository.findById(vehicleId);
   if (!vehicle) {
@@ -45,8 +49,10 @@ export default async function BookingPage({
     redirect("/");
   }
 
-  const bookings =
-    await bookingRepository.findActiveAvailabilityViewsByVehicleId(vehicleId);
+  const [bookings, options] = await Promise.all([
+    bookingRepository.findActiveAvailabilityViewsByVehicleId(vehicleId),
+    optionRepository.listActiveByAgency(vehicle.agencyId),
+  ]);
 
   // Parse dates from URL or use defaults
   let startDate: Date;
@@ -89,6 +95,7 @@ export default async function BookingPage({
           endDate={endDate}
           bookings={bookings}
           bookingId={bookingId}
+          options={options}
         />
       </div>
     </main>
