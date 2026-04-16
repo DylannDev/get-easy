@@ -31,6 +31,12 @@ interface ConfirmBookingPaymentDeps {
   paymentGateway: PaymentGateway;
   notifier: Notifier;
   adminEmail: string;
+  /**
+   * Optional — appelé en fire-and-forget une fois le booking passé en `paid`
+   * pour générer et stocker la facture PDF. Les erreurs sont silencieuses
+   * (loggées) pour ne pas interrompre le flow webhook Stripe.
+   */
+  generateInvoice?: (bookingId: string) => Promise<unknown>;
 }
 
 /**
@@ -148,6 +154,16 @@ export const createConfirmBookingPaymentUseCase = (
     await deps.bookingRepository.update(booking.id, {
       status: BookingStatus.Paid,
     });
+
+    // Génération de la facture en fire-and-forget — on ne bloque pas le
+    // webhook Stripe si la création échoue, on log simplement l'erreur.
+    if (deps.generateInvoice) {
+      try {
+        await deps.generateInvoice(booking.id);
+      } catch (e) {
+        console.error("❌ Invoice generation failed:", e);
+      }
+    }
 
     // Notifications (failures are logged but do not abort the flow)
     const customer = await deps.customerRepository.findById(booking.customerId);
