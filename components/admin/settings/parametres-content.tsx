@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { AgencySettings } from "./agency-settings";
+import { RentalTermsSettings } from "./rental-terms-settings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,15 +27,19 @@ import { ContentOverlay } from "@/components/admin/shared/content-overlay";
 import { createAgency } from "@/actions/admin/create-agency";
 import { deleteAgency } from "@/actions/admin/delete-agency";
 import { PiPlus, PiCaretDown, PiTrash } from "react-icons/pi";
-import type { Agency } from "@/domain/agency";
+import type { Agency, RichTextDocument } from "@/domain/agency";
 
 interface Props {
   agencies: Agency[];
+  defaultRentalTerms: RichTextDocument;
 }
 
-export function ParametresContent({ agencies }: Props) {
+type Tab = "general" | "terms";
+
+export function ParametresContent({ agencies, defaultRentalTerms }: Props) {
   const router = useRouter();
   const [selectedAgencyId, setSelectedAgencyId] = useState(agencies[0]?.id ?? "");
+  const [tab, setTab] = useState<Tab>("general");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -70,30 +75,26 @@ export function ParametresContent({ agencies }: Props) {
     <>
       {saving && <ContentOverlay />}
 
-      <div className="space-y-6">
-        {/* Agency selector + actions */}
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            {agencies.length > 1 && (
-              <div className="relative">
-                <select
-                  value={selectedAgencyId}
-                  onChange={(e) => setSelectedAgencyId(e.target.value)}
-                  className="h-10 appearance-none rounded-md border border-gray-300 pl-3 pr-9 text-sm font-medium cursor-pointer hover:border-gray-400 transition-colors"
-                >
-                  {agencies.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.name} — {a.city}
-                    </option>
-                  ))}
-                </select>
-                <PiCaretDown className="absolute right-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
-              </div>
-            )}
-          </div>
+      <div className="flex-1 min-h-0 flex flex-col gap-6">
+        {/* Agency selector + actions — only shown when there are multiple agencies */}
+        {agencies.length > 1 && (
+          <div className="flex items-center justify-between gap-3">
+            <div className="relative">
+              <select
+                value={selectedAgencyId}
+                onChange={(e) => setSelectedAgencyId(e.target.value)}
+                className="h-10 appearance-none rounded-md border border-gray-300 pl-3 pr-9 text-sm font-medium cursor-pointer hover:border-gray-400 transition-colors"
+              >
+                {agencies.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name} — {a.city}
+                  </option>
+                ))}
+              </select>
+              <PiCaretDown className="absolute right-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
+            </div>
 
-          <div className="flex items-center gap-2">
-            {!isFirstAgency && agencies.length > 1 && (
+            {!isFirstAgency && (
               <Button
                 variant="default"
                 size="sm"
@@ -104,20 +105,44 @@ export function ParametresContent({ agencies }: Props) {
                 Supprimer l&apos;agence
               </Button>
             )}
-            <Button
-              variant="default"
-              size="sm"
-              onClick={() => setDialogOpen(true)}
-            >
-              <PiPlus className="size-4" />
-              Ajouter une agence
-            </Button>
           </div>
-        </div>
+        )}
 
-        {/* Selected agency settings */}
+        {/* Tabs */}
         {selectedAgency && (
-          <AgencySettings key={selectedAgency.id} agency={selectedAgency} />
+          <>
+            <div className="border-b border-gray-200 flex gap-1">
+              <TabButton
+                active={tab === "general"}
+                onClick={() => setTab("general")}
+              >
+                Général
+              </TabButton>
+              <TabButton
+                active={tab === "terms"}
+                onClick={() => setTab("terms")}
+              >
+                Conditions de location
+              </TabButton>
+            </div>
+
+            {tab === "general" && (
+              <div className="flex-1 min-h-0 overflow-y-auto">
+                <AgencySettings
+                  key={selectedAgency.id}
+                  agency={selectedAgency}
+                  onOpenCreateDialog={() => setDialogOpen(true)}
+                />
+              </div>
+            )}
+            {tab === "terms" && (
+              <RentalTermsSettings
+                key={selectedAgency.id}
+                agency={selectedAgency}
+                defaultRentalTerms={defaultRentalTerms}
+              />
+            )}
+          </>
         )}
       </div>
 
@@ -211,6 +236,30 @@ export function ParametresContent({ agencies }: Props) {
         </AlertDialogContent>
       </AlertDialog>
     </>
+  );
+}
+
+function TabButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`px-4 py-2 text-sm font-medium cursor-pointer transition-colors -mb-px border-b-2 ${
+        active
+          ? "border-black text-foreground"
+          : "border-transparent text-muted-foreground hover:text-foreground"
+      }`}
+    >
+      {children}
+    </button>
   );
 }
 
