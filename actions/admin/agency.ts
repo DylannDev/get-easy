@@ -8,6 +8,8 @@ interface UpdateAgencyInput {
   name: string;
   address: string;
   city: string;
+  postalCode: string;
+  country: string;
   phone: string;
   email: string;
   deliveryLabel: string;
@@ -30,6 +32,8 @@ export async function updateAgency(agencyId: string, input: UpdateAgencyInput) {
       name: input.name,
       address: input.address,
       city: input.city,
+      postal_code: input.postalCode || null,
+      country: input.country || null,
       phone: input.phone,
       email: input.email,
       delivery_label: input.deliveryLabel,

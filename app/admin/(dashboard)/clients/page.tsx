@@ -73,7 +73,7 @@ export default async function ClientsPage({ searchParams }: Props) {
       <AdminHeader>
         <span className="text-sm text-muted-foreground">Clients</span>
       </AdminHeader>
-      <div className="flex-1 space-y-6 p-6">
+      <div className="flex-1 space-y-6 p-6 overflow-y-auto">
         <PageHeader
           title="Clients"
           description={`${count} client${count > 1 ? "s" : ""} au total`}

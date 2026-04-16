@@ -106,6 +106,7 @@ export const createSupabaseVehicleRepository = (): VehicleRepository => {
         registration_plate: input.registrationPlate,
         quantity: input.quantity,
         img: input.img,
+        fiscal_power: input.fiscalPower ?? null,
       })
       .select()
       .single();
@@ -134,6 +135,7 @@ export const createSupabaseVehicleRepository = (): VehicleRepository => {
     if (input.registrationPlate !== undefined) patch.registration_plate = input.registrationPlate;
     if (input.quantity !== undefined) patch.quantity = input.quantity;
     if (input.img !== undefined) patch.img = input.img;
+    if (input.fiscalPower !== undefined) patch.fiscal_power = input.fiscalPower;
 
     const { data, error } = await supabase
       .from("vehicles")

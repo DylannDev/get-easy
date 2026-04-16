@@ -24,6 +24,8 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import type { Agency, WeekSchedule, TimeSlot } from "@/domain/agency";
+import { getCountriesList } from "@/lib/countries";
+import { LoueurSignatureField } from "./loueur-signature-field";
 
 const DAYS = [
   "lundi",
@@ -65,7 +67,7 @@ const DEFAULT_SCHEDULE: WeekSchedule = {
         closeTime: "22:00",
         slots: [{ openTime: "07:00", closeTime: "22:00" }],
       },
-    ])
+    ]),
   ),
 };
 
@@ -73,9 +75,7 @@ function generateTimeSlots(): string[] {
   const slots: string[] = [];
   for (let h = 0; h < 24; h++) {
     for (let m = 0; m < 60; m += 15) {
-      slots.push(
-        `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`
-      );
+      slots.push(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
     }
   }
   return slots;
@@ -85,43 +85,43 @@ const TIME_SLOTS = generateTimeSlots();
 
 interface Props {
   agency: Agency;
+  onOpenCreateDialog?: () => void;
 }
 
-export function AgencySettings({ agency }: Props) {
+export function AgencySettings({ agency, onOpenCreateDialog }: Props) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
 
   const [name, setName] = useState(agency.name);
   const [address, setAddress] = useState(agency.address);
   const [city, setCity] = useState(agency.city);
+  const [postalCode, setPostalCode] = useState(agency.postalCode ?? "");
+  const [country, setCountry] = useState(agency.country ?? "FR");
   const [phone, setPhone] = useState(agency.phone ?? "");
   const [email, setEmail] = useState(agency.email ?? "");
   const [deliveryLabel, setDeliveryLabel] = useState(
-    agency.deliveryLabel ?? ""
+    agency.deliveryLabel ?? "",
   );
   const [deliveryZones, setDeliveryZones] = useState(
-    agency.deliveryZones ?? ""
+    agency.deliveryZones ?? "",
   );
-  const [intervalVal, setIntervalVal] = useState(
-    String(agency.hours.interval)
-  );
+  const [intervalVal, setIntervalVal] = useState(String(agency.hours.interval));
 
   const initSchedule = agency.schedule ?? DEFAULT_SCHEDULE;
   const [allDays, setAllDays] = useState(initSchedule.allDays);
   const [days, setDays] = useState<Record<string, DayState>>(
-    Object.fromEntries(
-      DAYS.map((d) => [d, dayFromSchedule(initSchedule, d)])
-    )
+    Object.fromEntries(DAYS.map((d) => [d, dayFromSchedule(initSchedule, d)])),
   );
 
   const allEnabled = DAYS.every((d) => days[d].enabled);
   const slotsEqual = (a: TimeSlot[], b: TimeSlot[]) =>
     a.length === b.length &&
     a.every(
-      (s, i) => s.openTime === b[i].openTime && s.closeTime === b[i].closeTime
+      (s, i) => s.openTime === b[i].openTime && s.closeTime === b[i].closeTime,
     );
   const allSameSlots =
-    allEnabled && DAYS.every((d) => slotsEqual(days[d].slots, days[DAYS[0]].slots));
+    allEnabled &&
+    DAYS.every((d) => slotsEqual(days[d].slots, days[DAYS[0]].slots));
 
   const handleAllDaysToggle = (checked: boolean) => {
     setAllDays(checked);
@@ -144,7 +144,8 @@ export function AgencySettings({ agency }: Props) {
       [day]: {
         ...prev[day],
         enabled,
-        slots: prev[day].slots.length > 0 ? prev[day].slots : [getDefaultSlot()],
+        slots:
+          prev[day].slots.length > 0 ? prev[day].slots : [getDefaultSlot()],
       },
     }));
   };
@@ -153,7 +154,7 @@ export function AgencySettings({ agency }: Props) {
     day: string,
     slotIndex: number,
     field: "openTime" | "closeTime",
-    value: string
+    value: string,
   ) => {
     if (allDays && allSameSlots) {
       setDays((prev) => {
@@ -210,7 +211,7 @@ export function AgencySettings({ agency }: Props) {
             days[d].slots[days[d].slots.length - 1]?.closeTime ?? "22:00",
           slots: days[d].slots,
         },
-      ])
+      ]),
     ),
   });
 
@@ -221,6 +222,8 @@ export function AgencySettings({ agency }: Props) {
       name,
       address,
       city,
+      postalCode,
+      country,
       phone,
       email,
       deliveryLabel,
@@ -319,7 +322,10 @@ export function AgencySettings({ agency }: Props) {
                 open={copyFrom === day}
                 onOpenChange={(open) => {
                   if (open) openCopyPopover(day);
-                  else { setCopyFrom(null); setCopyTargets(new Set()); }
+                  else {
+                    setCopyFrom(null);
+                    setCopyTargets(new Set());
+                  }
                 }}
               >
                 <TooltipProvider>
@@ -351,7 +357,9 @@ export function AgencySettings({ agency }: Props) {
                           checked={copyTargets.size === DAYS.length - 1}
                           onCheckedChange={toggleAllCopyTargets}
                         />
-                        <span className="text-sm font-medium">Tout sélectionner</span>
+                        <span className="text-sm font-medium">
+                          Tout sélectionner
+                        </span>
                       </label>
                       {/* Each day */}
                       {DAYS.map((d) => {
@@ -383,7 +391,10 @@ export function AgencySettings({ agency }: Props) {
                       type="button"
                       variant="ghost"
                       size="xs"
-                      onClick={() => { setCopyFrom(null); setCopyTargets(new Set()); }}
+                      onClick={() => {
+                        setCopyFrom(null);
+                        setCopyTargets(new Set());
+                      }}
                     >
                       Annuler
                     </Button>
@@ -409,7 +420,7 @@ export function AgencySettings({ agency }: Props) {
     <>
       {saving && <ContentOverlay />}
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-6 min-[1150px]:grid-cols-2">
           <Card>
             <CardHeader>
               <CardTitle className="text-base">
@@ -433,13 +444,25 @@ export function AgencySettings({ agency }: Props) {
                   required
                 />
               </Field>
-              <Field label="Localité">
-                <Input
-                  value={city}
-                  onChange={(e) => setCity(e.target.value)}
-                  placeholder="Rémire-Montjoly"
-                  required
-                />
+              <div className="grid gap-4 min-[1150px]:grid-cols-2">
+                <Field label="Code postal">
+                  <Input
+                    value={postalCode}
+                    onChange={(e) => setPostalCode(e.target.value)}
+                    placeholder="97354"
+                  />
+                </Field>
+                <Field label="Localité">
+                  <Input
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    placeholder="Rémire-Montjoly"
+                    required
+                  />
+                </Field>
+              </div>
+              <Field label="Pays">
+                <CountrySelect value={country} onChange={setCountry} />
               </Field>
             </CardContent>
           </Card>
@@ -505,7 +528,10 @@ export function AgencySettings({ agency }: Props) {
                   {DAYS.map((day) => {
                     const dayState = days[day];
                     return (
-                      <div key={day} className={`flex gap-3 ${dayState.slots.length > 1 ? "items-start" : "items-center"}`}>
+                      <div
+                        key={day}
+                        className={`flex gap-3 ${dayState.slots.length > 1 ? "items-start" : "items-center"}`}
+                      >
                         <Switch
                           checked={dayState.enabled}
                           onCheckedChange={(checked) =>
@@ -527,6 +553,25 @@ export function AgencySettings({ agency }: Props) {
                   })}
                 </div>
               )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">
+                Signature / tampon du Loueur
+              </CardTitle>
+              <p className="text-xs text-muted-foreground mt-1 mb-3">
+                Utilisée par défaut dans les contrats de location de cette
+                agence. <br />
+                Propre à chaque agence : modifiable agence par agence.
+              </p>
+            </CardHeader>
+            <CardContent>
+              <LoueurSignatureField
+                agencyId={agency.id}
+                value={agency.defaultLoueurSignature ?? null}
+              />
             </CardContent>
           </Card>
 
@@ -558,7 +603,21 @@ export function AgencySettings({ agency }: Props) {
           </Card>
         </div>
 
-        <div className="flex justify-end">
+        <div className="flex justify-between items-center">
+          {onOpenCreateDialog ? (
+            <Button
+              type="button"
+              variant="default"
+              size="sm"
+              onClick={onOpenCreateDialog}
+              disabled={saving}
+            >
+              <PiPlus className="size-4" />
+              Ajouter une agence
+            </Button>
+          ) : (
+            <span />
+          )}
           <Button type="submit" size="sm" disabled={saving}>
             {saving ? "Enregistrement..." : "Enregistrer"}
           </Button>
@@ -602,5 +661,40 @@ function Field({
       <Label className="text-xs text-muted-foreground">{label}</Label>
       {children}
     </div>
+  );
+}
+
+function CountrySelect({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (code: string) => void;
+}) {
+  // Priorité : DOM-TOM + France métropole en tête, reste par ordre alphabétique.
+  const all = getCountriesList();
+  const priority = ["FR", "GF", "MQ", "GP", "RE", "YT"];
+  const top = priority
+    .map((code) => all.find((c) => c.value === code))
+    .filter(Boolean) as { value: string; label: string }[];
+  const rest = all.filter((c) => !priority.includes(c.value));
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="h-10 w-full rounded-md border border-gray-300 px-3 text-sm"
+    >
+      {top.map((c) => (
+        <option key={c.value} value={c.value}>
+          {c.label}
+        </option>
+      ))}
+      <option disabled>──────────</option>
+      {rest.map((c) => (
+        <option key={c.value} value={c.value}>
+          {c.label}
+        </option>
+      ))}
+    </select>
   );
 }

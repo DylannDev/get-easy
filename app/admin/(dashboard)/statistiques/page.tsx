@@ -14,7 +14,7 @@ export default async function StatistiquesPage() {
       <AdminHeader>
         <span className="text-sm text-muted-foreground">Statistiques</span>
       </AdminHeader>
-      <div className="flex-1 space-y-6 p-6">
+      <div className="flex-1 space-y-6 p-6 overflow-y-auto">
         <PageHeader
           title="Statistiques"
           description="Analyse de votre activité"

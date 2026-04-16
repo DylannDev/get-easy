@@ -50,7 +50,7 @@ export default async function ReservationsPage({ searchParams }: Props) {
       <AdminHeader>
         <span className="text-sm text-muted-foreground">Réservations</span>
       </AdminHeader>
-      <div className="flex-1 space-y-6 p-6">
+      <div className="flex-1 space-y-6 p-6 overflow-y-auto">
         <PageHeader
           title="Réservations"
           description={`${count} réservation${count > 1 ? "s" : ""} au total`}

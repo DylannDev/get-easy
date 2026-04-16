@@ -36,6 +36,20 @@ export interface Database {
           open_time: string;
           close_time: string;
           interval: number;
+          rental_terms: Json | null;
+          rental_terms_updated_at: string | null;
+          legal_form: string | null;
+          capital_social: string | null;
+          rcs_city: string | null;
+          rcs_number: string | null;
+          siret: string | null;
+          tva_intracom: string | null;
+          logo_url: string | null;
+          logo_dark_url: string | null;
+          vat_enabled: boolean;
+          postal_code: string | null;
+          country: string | null;
+          default_loueur_signature: string | null;
           created_at: string;
         };
         Insert: {
@@ -47,6 +61,20 @@ export interface Database {
           open_time: string;
           close_time: string;
           interval: number;
+          rental_terms?: Json | null;
+          rental_terms_updated_at?: string | null;
+          legal_form?: string | null;
+          capital_social?: string | null;
+          rcs_city?: string | null;
+          rcs_number?: string | null;
+          siret?: string | null;
+          tva_intracom?: string | null;
+          logo_url?: string | null;
+          logo_dark_url?: string | null;
+          vat_enabled?: boolean;
+          postal_code?: string | null;
+          country?: string | null;
+          default_loueur_signature?: string | null;
           created_at?: string;
         };
         Update: {
@@ -58,6 +86,20 @@ export interface Database {
           open_time?: string;
           close_time?: string;
           interval?: number;
+          rental_terms?: Json | null;
+          rental_terms_updated_at?: string | null;
+          legal_form?: string | null;
+          capital_social?: string | null;
+          rcs_city?: string | null;
+          rcs_number?: string | null;
+          siret?: string | null;
+          tva_intracom?: string | null;
+          logo_url?: string | null;
+          logo_dark_url?: string | null;
+          vat_enabled?: boolean;
+          postal_code?: string | null;
+          country?: string | null;
+          default_loueur_signature?: string | null;
           created_at?: string;
         };
       };
@@ -78,6 +120,7 @@ export interface Database {
           registration_plate: string;
           quantity: number;
           img: string;
+          fiscal_power: number | null;
           created_at: string;
         };
         Insert: {
@@ -96,6 +139,7 @@ export interface Database {
           registration_plate: string;
           quantity: number;
           img: string;
+          fiscal_power?: number | null;
           created_at?: string;
         };
         Update: {
@@ -114,6 +158,7 @@ export interface Database {
           registration_plate?: string;
           quantity?: number;
           img?: string;
+          fiscal_power?: number | null;
           created_at?: string;
         };
       };
@@ -293,6 +338,146 @@ export interface Database {
           stripe_checkout_session_id?: string | null;
           created_at?: string;
           updated_at?: string;
+        };
+      };
+      options: {
+        Row: {
+          id: string;
+          agency_id: string;
+          name: string;
+          description: string | null;
+          price_type: string;
+          price: number;
+          max_quantity: number;
+          active: boolean;
+          sort_order: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          agency_id: string;
+          name: string;
+          description?: string | null;
+          price_type: string;
+          price: number;
+          max_quantity?: number;
+          active?: boolean;
+          sort_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          agency_id?: string;
+          name?: string;
+          description?: string | null;
+          price_type?: string;
+          price?: number;
+          max_quantity?: number;
+          active?: boolean;
+          sort_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      booking_options: {
+        Row: {
+          id: string;
+          booking_id: string;
+          option_id: string;
+          quantity: number;
+          unit_price_snapshot: number;
+          price_type_snapshot: string;
+          name_snapshot: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          booking_id: string;
+          option_id: string;
+          quantity?: number;
+          unit_price_snapshot: number;
+          price_type_snapshot: string;
+          name_snapshot: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          booking_id?: string;
+          option_id?: string;
+          quantity?: number;
+          unit_price_snapshot?: number;
+          price_type_snapshot?: string;
+          name_snapshot?: string;
+          created_at?: string;
+        };
+      };
+      booking_contract_fields: {
+        Row: {
+          booking_id: string;
+          fields: Json;
+          customer_signature: string | null;
+          loueur_signature: string | null;
+          signed_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          booking_id: string;
+          fields?: Json;
+          customer_signature?: string | null;
+          loueur_signature?: string | null;
+          signed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          booking_id?: string;
+          fields?: Json;
+          customer_signature?: string | null;
+          loueur_signature?: string | null;
+          signed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      documents: {
+        Row: {
+          id: string;
+          agency_id: string;
+          booking_id: string | null;
+          type: string;
+          file_path: string;
+          file_name: string;
+          mime_type: string;
+          size: number;
+          invoice_number: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          agency_id: string;
+          booking_id?: string | null;
+          type: string;
+          file_path: string;
+          file_name: string;
+          mime_type: string;
+          size: number;
+          invoice_number?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          agency_id?: string;
+          booking_id?: string | null;
+          type?: string;
+          file_path?: string;
+          file_name?: string;
+          mime_type?: string;
+          size?: number;
+          invoice_number?: string | null;
+          created_at?: string;
         };
       };
     };

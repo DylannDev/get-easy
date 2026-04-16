@@ -6,6 +6,10 @@ import { BookingStatusBadge } from "@/components/admin/shared/booking-status-bad
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getContainer } from "@/composition-root/container";
 import { BackLink } from "@/components/admin/shared/back-link";
+import { DocumentsContent } from "@/components/admin/documents/documents-content";
+import { GenerateInvoiceButton } from "@/components/admin/documents/generate-invoice-button";
+import { GenerateContractButton } from "@/components/admin/documents/generate-contract-button";
+import { BookingStatus } from "@/domain/booking";
 
 interface Props {
   params: Promise<{ bookingId: string }>;
@@ -13,15 +17,22 @@ interface Props {
 
 export default async function BookingDetailPage({ params }: Props) {
   const { bookingId } = await params;
-  const { bookingRepository, customerRepository, vehicleRepository } =
-    getContainer();
+  const {
+    bookingRepository,
+    customerRepository,
+    vehicleRepository,
+    listDocumentsUseCase,
+    contractFieldsRepository,
+  } = getContainer();
 
   const booking = await bookingRepository.findById(bookingId);
   if (!booking) notFound();
 
-  const [customer, vehicle] = await Promise.all([
+  const [customer, vehicle, documents, contractFields] = await Promise.all([
     customerRepository.findById(booking.customerId),
     vehicleRepository.findById(booking.vehicleId),
+    listDocumentsUseCase.byBooking(bookingId),
+    contractFieldsRepository.findByBooking(bookingId),
   ]);
 
   return (
@@ -29,7 +40,7 @@ export default async function BookingDetailPage({ params }: Props) {
       <AdminHeader>
         <BackLink href="/admin/reservations" label="Réservations" />
       </AdminHeader>
-      <div className="flex-1 space-y-6 p-6">
+      <div className="flex-1 space-y-6 p-6 overflow-y-auto">
         <div className="flex items-center gap-3">
           <PageHeader title="Détail de la réservation" />
           <BookingStatusBadge status={booking.status} />
@@ -117,6 +128,31 @@ export default async function BookingDetailPage({ params }: Props) {
             </CardContent>
           </Card>
         </div>
+
+        {/* Documents liés à la réservation */}
+        <DocumentsContent
+          documents={documents}
+          bookingById={{ [booking.id]: booking }}
+          bookingIdFilter={booking.id}
+          headerExtra={
+            booking.status === BookingStatus.Paid ? (
+              <>
+                <GenerateContractButton
+                  bookingId={booking.id}
+                  hasContract={documents.some((d) => d.type === "contract")}
+                  isSigned={
+                    !!contractFields?.signedAt &&
+                    documents.some((d) => d.type === "contract")
+                  }
+                />
+                <GenerateInvoiceButton
+                  bookingId={booking.id}
+                  hasInvoice={documents.some((d) => d.type === "invoice")}
+                />
+              </>
+            ) : null
+          }
+        />
       </div>
     </>
   );

@@ -38,6 +38,7 @@ export function toDomainVehicle(
     registrationPlate: row.registration_plate,
     quantity: row.quantity,
     img: imageUrl || row.img,
+    fiscalPower: (row.fiscal_power as number | null | undefined) ?? null,
     blockedPeriods: row.blockedPeriods.map(
       (p): BlockedPeriod => ({ start: p.start, end: p.end })
     ),

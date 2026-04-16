@@ -34,7 +34,7 @@ export default async function AdminDashboardPage({ searchParams }: Props) {
       <AdminHeader>
         <span className="text-sm text-muted-foreground">Tableau de bord</span>
       </AdminHeader>
-      <div className="flex-1 space-y-6 p-6">
+      <div className="flex-1 space-y-6 p-6 overflow-y-auto overflow-y-auto">
         <PageHeader
           title="Tableau de bord"
           description="Vue d'ensemble de votre activité"

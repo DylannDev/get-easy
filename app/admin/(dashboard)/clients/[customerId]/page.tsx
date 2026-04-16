@@ -31,7 +31,7 @@ export default async function CustomerDetailPage({ params }: Props) {
       <AdminHeader>
         <BackLink href="/admin/clients" label="Clients" />
       </AdminHeader>
-      <div className="flex-1 space-y-6 p-6">
+      <div className="flex-1 space-y-6 p-6 overflow-y-auto">
         <PageHeader
           title={`${customer.firstName} ${customer.lastName}`}
         />

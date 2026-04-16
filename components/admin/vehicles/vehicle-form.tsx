@@ -55,6 +55,7 @@ const vehicleSchema = z.object({
   registrationPlate: z.string().min(1, "L'immatriculation est requise"),
   quantity: z.coerce.number().min(1, "Min. 1"),
   img: z.string().min(1, "L'image est requise"),
+  fiscalPower: z.coerce.number().min(0).max(99).optional(),
 });
 
 type VehicleFormValues = z.infer<typeof vehicleSchema>;
@@ -94,6 +95,7 @@ export function VehicleForm({ vehicle, agencyId, existingImages = [], onSaving }
       registrationPlate: vehicle?.registrationPlate ?? "",
       quantity: vehicle?.quantity ?? 1,
       img: vehicle?.img ?? "",
+      fiscalPower: vehicle?.fiscalPower ?? undefined,
     },
   });
 
@@ -193,6 +195,7 @@ export function VehicleForm({ vehicle, agencyId, existingImages = [], onSaving }
           trunkSize: parsed.trunkSize,
           year: parsed.year,
           img: parsed.img,
+          fiscalPower: parsed.fiscalPower ?? null,
         };
         await createMultipleVehicles(base, allPlates);
       } else {
@@ -329,6 +332,18 @@ export function VehicleForm({ vehicle, agencyId, existingImages = [], onSaving }
             </div>
             <Field label="Taille du coffre" error={errors.trunkSize?.message}>
               <Input {...register("trunkSize")} placeholder="5 Bagages" />
+            </Field>
+            <Field
+              label="Puissance fiscale (CV)"
+              error={errors.fiscalPower?.message}
+            >
+              <Input
+                {...register("fiscalPower")}
+                type="number"
+                min="0"
+                max="99"
+                placeholder="5"
+              />
             </Field>
             <Field label="Prix de base / jour (€)" error={errors.pricePerDay?.message}>
               <Input {...register("pricePerDay")} type="number" placeholder="45" />

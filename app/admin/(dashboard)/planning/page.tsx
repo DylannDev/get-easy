@@ -21,7 +21,7 @@ export default async function PlanningPage() {
       <AdminHeader>
         <span className="text-sm text-muted-foreground">Planning</span>
       </AdminHeader>
-      <div className="flex-1 space-y-6 p-6">
+      <div className="flex-1 space-y-6 p-6 overflow-y-auto">
         <PageHeader
           title="Planning"
           description="Vue d'ensemble des réservations par véhicule"

@@ -16,6 +16,8 @@ import {
   PiBuildings,
   PiCheck,
   PiCaretUpDown,
+  PiFileText,
+  PiBriefcase,
 } from "react-icons/pi";
 import {
   Sidebar,
@@ -50,11 +52,18 @@ const managementNav = [
     href: "/admin/indisponibilites",
     icon: PiProhibit,
   },
+  { label: "Options", href: "/admin/options", icon: PiTag },
+  { label: "Documents", href: "/admin/documents", icon: PiFileText },
 ];
 
 const otherNav = [
   { label: "Statistiques", href: "/admin/statistiques", icon: PiChartBar },
   { label: "Infos agence", href: "/admin/infos-agence", icon: PiBuildings },
+  {
+    label: "Infos organisation",
+    href: "/admin/infos-organisation",
+    icon: PiBriefcase,
+  },
 ];
 
 interface AgencyInfo {

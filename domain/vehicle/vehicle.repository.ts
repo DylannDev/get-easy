@@ -19,6 +19,7 @@ export interface CreateVehicleInput {
   registrationPlate: string;
   quantity: number;
   img: string;
+  fiscalPower?: number | null;
 }
 
 export interface UpdateVehicleInput {
@@ -35,6 +36,7 @@ export interface UpdateVehicleInput {
   registrationPlate?: string;
   quantity?: number;
   img?: string;
+  fiscalPower?: number | null;
 }
 
 export interface VehicleRepository {

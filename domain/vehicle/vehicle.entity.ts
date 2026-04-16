@@ -19,5 +19,7 @@ export interface Vehicle {
   img: string;
   year: number;
   registrationPlate: string;
+  /** Puissance fiscale (chevaux), optionnelle. */
+  fiscalPower?: number | null;
   blockedPeriods: BlockedPeriod[];
 }
