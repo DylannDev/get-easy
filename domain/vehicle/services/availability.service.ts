@@ -51,10 +51,16 @@ export interface AvailabilityConflict {
 export interface AvailabilityOptions {
   /**
    * Booking id to exclude from the check. Used so a user editing their own
-   * pending booking is not blocked by it. SECURITY: a `paid` booking is
-   * NEVER excluded, even if its id matches.
+   * pending booking is not blocked by it. SECURITY: by default a `paid`
+   * booking is NEVER excluded, even if its id matches — c'est pour empêcher
+   * un client de contourner l'indispo en payant une 2e fois sa réservation.
+   *
+   * Pour les flux admin (édition de réservation par la gérante), on peut
+   * passer `allowExcludingPaid: true` afin d'exclure sa propre réservation
+   * payée lors de l'édition des dates.
    */
   excludeBookingId?: string | null;
+  allowExcludingPaid?: boolean;
 }
 
 // ---------- internal helpers ----------
@@ -85,12 +91,15 @@ function isActiveBooking(booking: BookingAvailabilityView): boolean {
 
 function shouldConsiderBooking(
   booking: BookingAvailabilityView,
-  excludeBookingId?: string | null
+  excludeBookingId?: string | null,
+  allowExcludingPaid?: boolean
 ): boolean {
   if (!isActiveBooking(booking)) return false;
   if (!excludeBookingId) return true;
-  // Paid bookings are NEVER excluded.
-  if (booking.status === "paid") return true;
+  // Par défaut les bookings `paid` ne peuvent pas être exclus (sécurité
+  // anti-bypass côté public). Le flag `allowExcludingPaid` est activé
+  // explicitement par les flux admin (édition de réservation).
+  if (booking.status === "paid" && !allowExcludingPaid) return true;
   return booking.id !== excludeBookingId;
 }
 
@@ -142,7 +151,14 @@ export function findAvailabilityConflict(
 
   // 2. Active bookings
   for (const booking of bookings) {
-    if (!shouldConsiderBooking(booking, options.excludeBookingId)) continue;
+    if (
+      !shouldConsiderBooking(
+        booking,
+        options.excludeBookingId,
+        options.allowExcludingPaid
+      )
+    )
+      continue;
 
     const rawStart = new Date(booking.start_date);
     const rawEnd = new Date(booking.end_date);
@@ -215,7 +231,14 @@ export function getBlockedDates(
   }
 
   for (const booking of bookings) {
-    if (!shouldConsiderBooking(booking, options.excludeBookingId)) continue;
+    if (
+      !shouldConsiderBooking(
+        booking,
+        options.excludeBookingId,
+        options.allowExcludingPaid
+      )
+    )
+      continue;
     pushRange(new Date(booking.start_date), new Date(booking.end_date));
   }
 
