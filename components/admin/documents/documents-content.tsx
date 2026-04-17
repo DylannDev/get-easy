@@ -135,9 +135,9 @@ export function DocumentsContent({
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-          <span className="text-base font-semibold">
+          <CardTitle className="text-base">
             {bookingIdFilter ? "Documents liés" : "Tous les documents"}
-          </span>
+          </CardTitle>
           <div className="flex items-center gap-2">
             {headerExtra}
             <Button
