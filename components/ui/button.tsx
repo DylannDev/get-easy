@@ -11,9 +11,11 @@ const buttonVariants = cva(
       variant: {
         // Get Easy custom styles (public site)
         default:
-          "bg-black text-green hover:bg-black/90 active:scale-95 rounded-xl font-title cursor-pointer focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-black disabled:cursor-not-allowed disabled:scale-100 disabled:opacity-80",
+          "border-2 border-black bg-black text-green hover:bg-black/90 active:scale-95 rounded-xl font-title cursor-pointer focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-black disabled:cursor-not-allowed disabled:scale-100 disabled:opacity-80",
         outline:
           "border-2 border-black bg-transparent text-black hover:bg-black hover:text-green active:scale-95 rounded-xl font-title cursor-pointer",
+        red:
+          "border-2 border-red-500 bg-red-500 text-white hover:bg-red-600 hover:border-red-600 active:scale-95 rounded-xl font-title cursor-pointer focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-red-500 disabled:cursor-not-allowed disabled:scale-100 disabled:opacity-80",
         ghost:
           "font-sans",
         link: "text-primary underline-offset-4 hover:underline",

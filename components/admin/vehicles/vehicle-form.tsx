@@ -8,7 +8,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
@@ -484,7 +484,7 @@ export function VehicleForm({ vehicle, agencyId, existingImages = [], onSaving }
             <>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button type="button" variant="default" size="sm" disabled={deleting} className="bg-red-500 text-white hover:bg-red-600">
+                  <Button type="button" variant="red" size="sm" disabled={deleting}>
                     <PiTrash className="size-4" />
                     {deleting ? "Suppression..." : "Supprimer"}
                   </Button>
@@ -498,7 +498,7 @@ export function VehicleForm({ vehicle, agencyId, existingImages = [], onSaving }
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel className="border-2 border-black text-black hover:text-green bg-transparent shadow-none">Annuler</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleDelete} className="border-2 border-red-500 bg-red-500 text-white hover:bg-red-600">
+                    <AlertDialogAction onClick={handleDelete} className={buttonVariants({ variant: "red" })}>
                       Supprimer
                     </AlertDialogAction>
                   </AlertDialogFooter>

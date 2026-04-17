@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/admin/page-header";
 import { VehicleGrid } from "@/components/admin/vehicles/vehicle-grid";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { ContentOverlay } from "@/components/admin/shared/content-overlay";
 import {
   AlertDialog,
@@ -104,15 +104,11 @@ export function VehiclesPageContent({ vehicles }: Props) {
               </Button>
             )}
             <Button
-              variant="default"
+              variant="red"
               size="sm"
               onClick={handleDeleteClick}
               className={
-                selectMode && selectedIds.size > 0
-                  ? "bg-red-500 text-white hover:bg-red-600"
-                  : selectMode
-                    ? "bg-red-500 text-white hover:bg-red-600 opacity-50"
-                    : "bg-red-500 text-white hover:bg-red-600"
+                selectMode && selectedIds.size > 0 ? "" : selectMode ? "opacity-50" : ""
               }
               disabled={selectMode && selectedIds.size === 0}
             >
@@ -149,7 +145,7 @@ export function VehiclesPageContent({ vehicles }: Props) {
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleConfirmDelete}
-              className="border-2 border-red-500 bg-red-500 text-white hover:bg-red-600"
+              className={buttonVariants({ variant: "red" })}
             >
               Supprimer
             </AlertDialogAction>

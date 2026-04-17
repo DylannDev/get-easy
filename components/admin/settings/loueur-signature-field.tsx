@@ -27,13 +27,13 @@ const ACCEPTED_MIME = [
  * (comme le logo). L'utilisateur n'a pas besoin de cliquer sur le bouton
  * global "Enregistrer" du formulaire agence pour persister la signature.
  *
- * Deux modes : dessiner (canvas) ou téléverser (image / PDF).
+ * Deux modes : dessiner (canvas) ou importer (image / PDF).
  */
 export function LoueurSignatureField({ agencyId, value }: Props) {
   const router = useRouter();
   const [current, setCurrent] = useState<string | null>(value);
   const [mode, setMode] = useState<"draw" | "upload">(() =>
-    value ? "upload" : "draw"
+    value ? "upload" : "draw",
   );
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -117,7 +117,7 @@ export function LoueurSignatureField({ agencyId, value }: Props) {
           }
         >
           <PiUploadSimple className="size-4" />
-          Téléverser
+          Importer
         </Button>
         {current && (
           <button

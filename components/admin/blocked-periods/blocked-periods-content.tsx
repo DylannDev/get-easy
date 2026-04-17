@@ -12,7 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -184,7 +184,7 @@ export function BlockedPeriodsContent({ periods, vehicles }: Props) {
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
-              className="border-2 border-red-500 bg-red-500 text-white hover:bg-red-600"
+              className={buttonVariants({ variant: "red" })}
             >
               Supprimer
             </AlertDialogAction>

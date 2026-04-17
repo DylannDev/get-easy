@@ -19,20 +19,29 @@ export function LoginForm() {
     setError("");
     setIsLoading(true);
 
-    const supabase = createAuthBrowserClient();
-    const { error: authError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    try {
+      const supabase = createAuthBrowserClient();
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    if (authError) {
-      setError("Email ou mot de passe incorrect");
+      if (authError) {
+        setError(authError.message);
+        setIsLoading(false);
+        return;
+      }
+
+      router.push("/admin");
+      router.refresh();
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? `Erreur: ${err.message}`
+          : "Erreur inattendue lors de la connexion."
+      );
       setIsLoading(false);
-      return;
     }
-
-    router.push("/admin");
-    router.refresh();
   };
 
   return (
