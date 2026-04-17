@@ -24,7 +24,17 @@ const nextConfig: NextConfig = {
   // chargent leurs propres workers/binaires natifs et doivent rester en
   // modules Node externes (sinon : "Cannot find module pdf.worker.mjs"
   // pour pdfjs-dist, et soucis de binaires natifs pour sharp).
-  serverExternalPackages: ["pdf-to-img", "pdfjs-dist", "sharp", "@react-pdf/renderer"],
+  serverExternalPackages: [
+    "pdf-to-img",
+    "pdfjs-dist",
+    "sharp",
+    "@react-pdf/renderer",
+    // Décodage HEIC via libheif compilé en WASM — doit rester externe pour
+    // que Node charge le .wasm embarqué dans le package.
+    "heic-convert",
+    "heic-decode",
+    "libheif-js",
+  ],
 };
 
 export default nextConfig;

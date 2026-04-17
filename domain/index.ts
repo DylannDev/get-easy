@@ -16,4 +16,5 @@ export * from "./payment";
 export * from "./option";
 export * from "./document";
 export * from "./contract";
+export * from "./customer-document";
 export * from "./shared/date-range.vo";

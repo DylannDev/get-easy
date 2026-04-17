@@ -8,6 +8,7 @@ import {
   pdfFirstPageToImage,
   type CompressPdfOptions,
 } from "./compress-pdf";
+import { heicToJpeg } from "./heic-to-jpeg";
 
 export interface CompressFileResult {
   buffer: Buffer;
@@ -27,6 +28,13 @@ export interface CompressFileOptions {
    * (ex. embed dans `@react-pdf/renderer` via `<Image>`).
    */
   pdfToImage?: boolean;
+  /**
+   * Taille minimale (en octets) à partir de laquelle un PDF est compressé.
+   * En dessous du seuil, le fichier est renvoyé tel quel (souvent déjà
+   * bien optimisé ; la rasterisation ferait perdre en qualité pour un gain
+   * marginal). Par défaut 0 → toujours compresser.
+   */
+  pdfMinSizeToCompress?: number;
 }
 
 const ACCEPTED_IMAGE = [
@@ -34,6 +42,11 @@ const ACCEPTED_IMAGE = [
   "image/jpeg",
   "image/webp",
   "image/svg+xml",
+  // HEIC / HEIF (iPhone, certains Samsung récents) — décodés par sharp
+  // via libvips+heif. Convertis systématiquement en JPEG/PNG lisibles
+  // partout (les navigateurs ne gèrent pas HEIC nativement).
+  "image/heic",
+  "image/heif",
 ];
 
 /**
@@ -53,12 +66,21 @@ export async function compressFile(
   const mime = inputMimeType.toLowerCase();
 
   if (ACCEPTED_IMAGE.includes(mime)) {
-    const result = await compressImage(input, options.image);
+    // HEIC/HEIF : sharp peut décoder via libvips+libheif natif, mais ce
+    // dernier n'est pas toujours présent en prod. On passe d'abord par
+    // `heic-convert` (WASM, zéro dépendance native) pour obtenir un JPEG
+    // universel, puis on enchaîne le pipeline sharp habituel (resize +
+    // recompression qualitative).
+    const isHeic = mime === "image/heic" || mime === "image/heif";
+    const bufferForSharp = isHeic ? await heicToJpeg(input) : input;
+    const result = await compressImage(bufferForSharp, options.image);
     return {
       buffer: result.buffer,
       mimeType: result.mimeType,
       size: result.size,
-      ratio: result.ratio,
+      // Ratio toujours calculé par rapport au fichier d'origine (le HEIC),
+      // pas au JPEG intermédiaire — c'est la vraie info utile au caller.
+      ratio: result.size / input.byteLength,
       converted: mime !== result.mimeType ? { from: mime, to: result.mimeType } : undefined,
     };
   }
@@ -78,6 +100,19 @@ export async function compressFile(
         converted: { from: "application/pdf", to: compressed.mimeType },
       };
     }
+
+    // Seuil : les PDFs en-dessous de `pdfMinSizeToCompress` octets sont
+    // renvoyés tels quels (déjà optimisés en général).
+    const threshold = options.pdfMinSizeToCompress ?? 0;
+    if (input.byteLength <= threshold) {
+      return {
+        buffer: input,
+        mimeType: "application/pdf",
+        size: input.byteLength,
+        ratio: 1,
+      };
+    }
+
     const result = await compressPdf(input, options.pdf);
     return {
       buffer: result.buffer,

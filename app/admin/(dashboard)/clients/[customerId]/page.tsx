@@ -7,6 +7,7 @@ import { getContainer } from "@/composition-root/container";
 import { formatDateCayenne } from "@/lib/format-date";
 import Link from "next/link";
 import { BackLink } from "@/components/admin/shared/back-link";
+import { CustomerDocumentsSection } from "@/components/admin/customer-documents/customer-documents-section";
 
 interface Props {
   params: Promise<{ customerId: string }>;
@@ -14,17 +15,24 @@ interface Props {
 
 export default async function CustomerDetailPage({ params }: Props) {
   const { customerId } = await params;
-  const { customerRepository, bookingRepository } = getContainer();
+  const {
+    customerRepository,
+    bookingRepository,
+    customerDocumentRepository,
+  } = getContainer();
 
   const customer = await customerRepository.findById(customerId);
   if (!customer) notFound();
 
-  const { data: bookings } = await bookingRepository.findAllWithDetails({
-    page: 1,
-    pageSize: 50,
-    search: customer.email,
-    sort: { field: "created_at", direction: "desc" },
-  });
+  const [{ data: bookings }, customerDocuments] = await Promise.all([
+    bookingRepository.findAllWithDetails({
+      page: 1,
+      pageSize: 50,
+      search: customer.email,
+      sort: { field: "created_at", direction: "desc" },
+    }),
+    customerDocumentRepository.listByCustomer(customerId),
+  ]);
 
   return (
     <>
@@ -78,6 +86,15 @@ export default async function CustomerDetailPage({ params }: Props) {
             </CardContent>
           </Card>
         </div>
+
+        {/* Pièces jointes (uploadées depuis le site) */}
+        {customerDocuments.length > 0 && (
+          <CustomerDocumentsSection
+            documents={customerDocuments}
+            context={{ customerId }}
+            title="Pièces jointes"
+          />
+        )}
 
         {/* Historique réservations */}
         <Card>

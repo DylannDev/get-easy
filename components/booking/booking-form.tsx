@@ -23,6 +23,10 @@ import {
   handleDateKeyDown,
 } from "@/lib/format-date-input";
 import { createBookingAction } from "@/actions/create-booking";
+import {
+  CustomerDocumentsUpload,
+  type StagedDocState,
+} from "./customer-documents-upload";
 import { checkVehicleAvailability } from "@/actions/check-vehicle-availability";
 import type { Vehicle } from "@/types";
 import type { Agency } from "@/domain/agency";
@@ -75,6 +79,7 @@ export const BookingForm = ({
   const countries = [...orderedPriorityCountries, ...otherCountries];
 
   const [bookingError, setBookingError] = useState<string | null>(null);
+  const [stagedDocs, setStagedDocs] = useState<StagedDocState>({});
 
   // Validation des dates : doit avoir au moins 1 jour de location
   // numberOfDays vient du hook useBookingSummary partagé au niveau du parent
@@ -155,6 +160,23 @@ export const BookingForm = ({
         return; // Empêche la soumission
       }
 
+      // Prépare les documents en staging à lier au booking après création
+      const stagedDocuments = Object.entries(stagedDocs)
+        .filter(
+          (entry): entry is [typeof entry[0], NonNullable<typeof entry[1]>] =>
+            entry[1] !== null && entry[1] !== undefined
+        )
+        .map(([type, staged]) => ({
+          stagingKey: staged.stagingKey,
+          type: type as
+            | "driver_license"
+            | "id_card"
+            | "proof_of_address",
+          fileName: staged.originalFileName,
+          mimeType: staged.mimeType,
+          size: staged.size,
+        }));
+
       // Appeler la Server Action pour créer la réservation et la session Stripe
       const result = await createBookingAction({
         customerData: data,
@@ -167,6 +189,7 @@ export const BookingForm = ({
         totalPrice,
         selectedOptions,
         bookingId, // Passer le bookingId pour mettre à jour le booking "initiated"
+        stagedDocuments,
       });
 
       if (!result.success) {
@@ -422,6 +445,9 @@ export const BookingForm = ({
             />
           </div>
         </div>
+
+        {/* Section 3 bis — Pièces jointes facultatives */}
+        <CustomerDocumentsUpload value={stagedDocs} onChange={setStagedDocs} />
 
         {/* Section 4 - Acceptation des conditions */}
         <div className="bg-green/40 p-2 rounded-md mb-0">
