@@ -50,6 +50,7 @@ export interface Database {
           postal_code: string | null;
           country: string | null;
           default_loueur_signature: string | null;
+          quote_validity_days: number;
           created_at: string;
         };
         Insert: {
@@ -75,6 +76,7 @@ export interface Database {
           postal_code?: string | null;
           country?: string | null;
           default_loueur_signature?: string | null;
+          quote_validity_days?: number;
           created_at?: string;
         };
         Update: {
@@ -100,6 +102,7 @@ export interface Database {
           postal_code?: string | null;
           country?: string | null;
           default_loueur_signature?: string | null;
+          quote_validity_days?: number;
           created_at?: string;
         };
       };
@@ -351,6 +354,8 @@ export interface Database {
           max_quantity: number;
           active: boolean;
           sort_order: number;
+          cap_enabled: boolean;
+          monthly_cap: number | null;
           created_at: string;
           updated_at: string;
         };
@@ -364,6 +369,8 @@ export interface Database {
           max_quantity?: number;
           active?: boolean;
           sort_order?: number;
+          cap_enabled?: boolean;
+          monthly_cap?: number | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -377,6 +384,8 @@ export interface Database {
           max_quantity?: number;
           active?: boolean;
           sort_order?: number;
+          cap_enabled?: boolean;
+          monthly_cap?: number | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -390,6 +399,7 @@ export interface Database {
           unit_price_snapshot: number;
           price_type_snapshot: string;
           name_snapshot: string;
+          monthly_cap_snapshot: number | null;
           created_at: string;
         };
         Insert: {
@@ -400,6 +410,7 @@ export interface Database {
           unit_price_snapshot: number;
           price_type_snapshot: string;
           name_snapshot: string;
+          monthly_cap_snapshot?: number | null;
           created_at?: string;
         };
         Update: {
@@ -410,6 +421,7 @@ export interface Database {
           unit_price_snapshot?: number;
           price_type_snapshot?: string;
           name_snapshot?: string;
+          monthly_cap_snapshot?: number | null;
           created_at?: string;
         };
       };
@@ -442,42 +454,261 @@ export interface Database {
           updated_at?: string;
         };
       };
-      documents: {
+      customer_documents: {
         Row: {
           id: string;
-          agency_id: string;
+          customer_id: string;
           booking_id: string | null;
           type: string;
           file_path: string;
           file_name: string;
           mime_type: string;
           size: number;
-          invoice_number: string | null;
           created_at: string;
         };
         Insert: {
           id?: string;
-          agency_id: string;
+          customer_id: string;
           booking_id?: string | null;
           type: string;
           file_path: string;
           file_name: string;
           mime_type: string;
           size: number;
-          invoice_number?: string | null;
           created_at?: string;
         };
         Update: {
           id?: string;
-          agency_id?: string;
+          customer_id?: string;
           booking_id?: string | null;
           type?: string;
           file_path?: string;
           file_name?: string;
           mime_type?: string;
           size?: number;
-          invoice_number?: string | null;
           created_at?: string;
+        };
+      };
+      documents: {
+        Row: {
+          id: string;
+          agency_id: string;
+          booking_id: string | null;
+          quote_id: string | null;
+          inspection_report_id: string | null;
+          type: string;
+          file_path: string;
+          file_name: string;
+          mime_type: string;
+          size: number;
+          invoice_number: string | null;
+          quote_number: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          agency_id: string;
+          booking_id?: string | null;
+          quote_id?: string | null;
+          inspection_report_id?: string | null;
+          type: string;
+          file_path: string;
+          file_name: string;
+          mime_type: string;
+          size: number;
+          invoice_number?: string | null;
+          quote_number?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          agency_id?: string;
+          booking_id?: string | null;
+          quote_id?: string | null;
+          inspection_report_id?: string | null;
+          type?: string;
+          file_path?: string;
+          file_name?: string;
+          mime_type?: string;
+          size?: number;
+          invoice_number?: string | null;
+          quote_number?: string | null;
+          created_at?: string;
+        };
+      };
+      inspection_reports: {
+        Row: {
+          id: string;
+          booking_id: string;
+          type: string;
+          mileage: number | null;
+          fuel_level: string | null;
+          notes: string | null;
+          customer_signature: string | null;
+          signed_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          booking_id: string;
+          type: string;
+          mileage?: number | null;
+          fuel_level?: string | null;
+          notes?: string | null;
+          customer_signature?: string | null;
+          signed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          booking_id?: string;
+          type?: string;
+          mileage?: number | null;
+          fuel_level?: string | null;
+          notes?: string | null;
+          customer_signature?: string | null;
+          signed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      inspection_photos: {
+        Row: {
+          id: string;
+          report_id: string;
+          file_path: string;
+          file_name: string;
+          mime_type: string;
+          size: number;
+          note: string | null;
+          sort_order: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          report_id: string;
+          file_path: string;
+          file_name: string;
+          mime_type: string;
+          size: number;
+          note?: string | null;
+          sort_order?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          report_id?: string;
+          file_path?: string;
+          file_name?: string;
+          mime_type?: string;
+          size?: number;
+          note?: string | null;
+          sort_order?: number;
+          created_at?: string;
+        };
+      };
+      quotes: {
+        Row: {
+          id: string;
+          agency_id: string;
+          customer_id: string;
+          vehicle_id: string;
+          start_date: string;
+          end_date: string;
+          base_price: number;
+          options_total: number;
+          cgl_total: number;
+          total_price: number;
+          valid_until: string;
+          created_at: string;
+          created_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          agency_id: string;
+          customer_id: string;
+          vehicle_id: string;
+          start_date: string;
+          end_date: string;
+          base_price: number;
+          options_total?: number;
+          cgl_total?: number;
+          total_price: number;
+          valid_until: string;
+          created_at?: string;
+          created_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          agency_id?: string;
+          customer_id?: string;
+          vehicle_id?: string;
+          start_date?: string;
+          end_date?: string;
+          base_price?: number;
+          options_total?: number;
+          cgl_total?: number;
+          total_price?: number;
+          valid_until?: string;
+          created_at?: string;
+          created_by?: string | null;
+        };
+      };
+      quote_options: {
+        Row: {
+          id: string;
+          quote_id: string;
+          option_id: string;
+          quantity: number;
+          unit_price_snapshot: number;
+          price_type_snapshot: string;
+          name_snapshot: string;
+          monthly_cap_snapshot: number | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          quote_id: string;
+          option_id: string;
+          quantity?: number;
+          unit_price_snapshot: number;
+          price_type_snapshot: string;
+          name_snapshot: string;
+          monthly_cap_snapshot?: number | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          quote_id?: string;
+          option_id?: string;
+          quantity?: number;
+          unit_price_snapshot?: number;
+          price_type_snapshot?: string;
+          name_snapshot?: string;
+          monthly_cap_snapshot?: number | null;
+          created_at?: string;
+        };
+      };
+      quote_sequences: {
+        Row: {
+          organization_id: string;
+          year: number;
+          current_number: number;
+          updated_at: string;
+        };
+        Insert: {
+          organization_id: string;
+          year: number;
+          current_number?: number;
+          updated_at?: string;
+        };
+        Update: {
+          organization_id?: string;
+          year?: number;
+          current_number?: number;
+          updated_at?: string;
         };
       };
     };

@@ -56,5 +56,7 @@ export interface Agency {
   vatEnabled?: boolean;
   /** Data URL PNG — signature ou tampon par défaut du Loueur, per-agence. */
   defaultLoueurSignature?: string | null;
+  /** Durée de validité (en jours) appliquée par défaut aux devis émis. */
+  quoteValidityDays?: number;
   vehicles: Vehicle[];
 }

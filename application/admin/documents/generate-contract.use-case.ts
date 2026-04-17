@@ -9,6 +9,7 @@ import type {
   ContractEditableFields,
 } from "@/domain/contract";
 import { computeBilledDays } from "@/domain/vehicle";
+import { computeOptionLineTotal } from "@/domain/option";
 import { getCountryName } from "@/lib/countries";
 import { fetchImageAsDataUrl } from "@/lib/pdf/fetch-image-as-data-url";
 
@@ -224,13 +225,20 @@ export const createGenerateContractUseCase = (deps: Deps) => {
     const endDate = new Date(booking.endDate);
     const numberOfDays = Math.max(1, computeBilledDays(startDate, endDate));
 
-    const optionsTotalSnapshot = options.reduce((acc, bo) => {
-      const line =
-        bo.priceTypeSnapshot === "per_day"
-          ? bo.unitPriceSnapshot * bo.quantity * numberOfDays
-          : bo.unitPriceSnapshot * bo.quantity;
-      return acc + line;
-    }, 0);
+    const optionsTotalSnapshot = options.reduce(
+      (acc, bo) =>
+        acc +
+        computeOptionLineTotal(
+          {
+            unitPrice: bo.unitPriceSnapshot,
+            priceType: bo.priceTypeSnapshot,
+            quantity: bo.quantity,
+            monthlyCap: bo.monthlyCapSnapshot,
+          },
+          numberOfDays
+        ),
+      0
+    );
     const vehicleTotal = Math.max(0, booking.totalPrice - optionsTotalSnapshot);
     const pricePerDay = vehicleTotal / numberOfDays;
 

@@ -1,9 +1,15 @@
 import { AdminHeader } from "@/components/admin/admin-header";
+import { PageHeader } from "@/components/admin/page-header";
 import { BackLink } from "@/components/admin/shared/back-link";
 import { NewBookingWizard } from "@/components/admin/reservations/new-booking-wizard";
 import { getContainer } from "@/composition-root/container";
 
-export default async function NewBookingPage() {
+/**
+ * Génération d'un devis — réutilise le wizard à 4 étapes en mode "quote".
+ * Le wizard produit un PDF téléchargeable et une ligne dans `documents`
+ * (type "quote") au lieu de créer une réservation.
+ */
+export default async function NewQuotePage() {
   const {
     vehicleRepository,
     agencyRepository,
@@ -29,10 +35,10 @@ export default async function NewBookingPage() {
     country: c.country,
   }));
 
-  // Charge les options (actives) pour chaque agence en une passe
-  const optionsByAgency: Record<string, Awaited<
-    ReturnType<typeof listOptionsUseCase.execute>
-  >> = {};
+  const optionsByAgency: Record<
+    string,
+    Awaited<ReturnType<typeof listOptionsUseCase.execute>>
+  > = {};
   await Promise.all(
     agencies.map(async (agency) => {
       const all = await listOptionsUseCase.execute(agency.id);
@@ -40,8 +46,6 @@ export default async function NewBookingPage() {
     })
   );
 
-  // Batch : toutes les résas actives par véhicule — sert au filtrage
-  // client-side de la liste de véhicules dès que les dates sont posées.
   const vehicleIds = vehicles.map((v) => v.id);
   const bookingsMap =
     await bookingRepository.findActiveAvailabilityViewsByVehicleIds(vehicleIds);
@@ -53,7 +57,12 @@ export default async function NewBookingPage() {
         <BackLink href="/admin/reservations" label="Réservations" />
       </AdminHeader>
       <div className="flex-1 space-y-6 p-6 overflow-y-auto">
+        <PageHeader
+          title="Générer un devis"
+          description="Sélectionnez un véhicule, des options et un client. Un PDF daté et numéroté sera téléchargeable à la fin."
+        />
         <NewBookingWizard
+          mode="quote"
           vehicles={vehicles}
           agencies={agencies}
           optionsByAgency={optionsByAgency}

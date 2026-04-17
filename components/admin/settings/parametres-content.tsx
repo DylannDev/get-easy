@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { AgencySettings } from "./agency-settings";
 import { RentalTermsSettings } from "./rental-terms-settings";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -96,9 +96,8 @@ export function ParametresContent({ agencies, defaultRentalTerms }: Props) {
 
             {!isFirstAgency && (
               <Button
-                variant="default"
+                variant="red"
                 size="sm"
-                className="bg-red-500 text-white hover:bg-red-600"
                 onClick={() => setDeleteDialogOpen(true)}
               >
                 <PiTrash className="size-4" />
@@ -228,7 +227,7 @@ export function ParametresContent({ agencies, defaultRentalTerms }: Props) {
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
-              className="border-2 border-red-500 bg-red-500 text-white hover:bg-red-600"
+              className={buttonVariants({ variant: "red" })}
             >
               Supprimer définitivement
             </AlertDialogAction>

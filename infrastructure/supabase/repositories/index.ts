@@ -6,3 +6,6 @@ export { createSupabasePaymentRepository } from "./supabase-payment.repository";
 export { createSupabaseOptionRepository } from "./supabase-option.repository";
 export { createSupabaseDocumentRepository } from "./supabase-document.repository";
 export { createSupabaseContractFieldsRepository } from "./supabase-contract-fields.repository";
+export { createSupabaseCustomerDocumentRepository } from "./supabase-customer-document.repository";
+export { createSupabaseQuoteRepository } from "./supabase-quote.repository";
+export { createSupabaseInspectionRepository } from "./supabase-inspection.repository";

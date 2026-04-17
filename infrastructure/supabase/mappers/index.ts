@@ -6,3 +6,6 @@ export * from "./payment.mapper";
 export * from "./option.mapper";
 export * from "./document.mapper";
 export * from "./contract-fields.mapper";
+export * from "./customer-document.mapper";
+export * from "./quote.mapper";
+export * from "./inspection.mapper";

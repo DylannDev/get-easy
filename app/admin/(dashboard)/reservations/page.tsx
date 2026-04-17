@@ -1,11 +1,9 @@
-import Link from "next/link";
 import { AdminHeader } from "@/components/admin/admin-header";
 import { PageHeader } from "@/components/admin/page-header";
 import { ReservationsTable } from "@/components/admin/reservations/reservations-table";
-import { Button } from "@/components/ui/button";
+import { ReservationsActions } from "@/components/admin/reservations/reservations-actions";
 import { getContainer } from "@/composition-root/container";
 import { getActiveAgency } from "@/lib/admin/get-active-agency";
-import { PiPlus } from "react-icons/pi";
 import type { BookingStatus } from "@/domain/booking";
 
 interface Props {
@@ -54,14 +52,7 @@ export default async function ReservationsPage({ searchParams }: Props) {
         <PageHeader
           title="Réservations"
           description={`${count} réservation${count > 1 ? "s" : ""} au total`}
-          action={
-            <Link href="/admin/reservations/nouvelle">
-              <Button variant="default" size="sm">
-                <PiPlus className="size-4" />
-                Nouvelle réservation
-              </Button>
-            </Link>
-          }
+          action={<ReservationsActions />}
         />
 
         <ReservationsTable

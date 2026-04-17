@@ -72,7 +72,7 @@ export function UploadDocumentDialog({
     >
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Téléverser un document</DialogTitle>
+          <DialogTitle>Importer un document</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -131,7 +131,7 @@ export function UploadDocumentDialog({
               onClick={handleSubmit}
               disabled={uploading}
             >
-              {uploading ? "Envoi…" : "Téléverser"}
+              {uploading ? "Envoi…" : "Importer"}
             </Button>
           </div>
         </div>

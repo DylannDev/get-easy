@@ -8,16 +8,15 @@ export function toDomainDocument(row: DocumentRow): Document {
     id: row.id,
     agencyId: row.agency_id,
     bookingId: row.booking_id,
+    quoteId: row.quote_id ?? null,
+    inspectionReportId: row.inspection_report_id ?? null,
     type: row.type as DocumentType,
     filePath: row.file_path,
     fileName: row.file_name,
     mimeType: row.mime_type,
     size: Number(row.size),
-    invoiceNumber:
-      ((row as Record<string, unknown>).invoice_number as
-        | string
-        | null
-        | undefined) ?? null,
+    invoiceNumber: row.invoice_number ?? null,
+    quoteNumber: row.quote_number ?? null,
     createdAt: row.created_at,
   };
 }

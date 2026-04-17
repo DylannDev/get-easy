@@ -93,7 +93,7 @@ export const createSupabaseDocumentRepository = (): DocumentRepository => {
       });
     if (uploadError) {
       throw new Error(
-        `Impossible de téléverser le fichier : ${uploadError.message}`
+        `Impossible de importer le fichier : ${uploadError.message}`,
       );
     }
 
@@ -107,12 +107,15 @@ export const createSupabaseDocumentRepository = (): DocumentRepository => {
       .insert({
         agency_id: input.agencyId,
         booking_id: input.bookingId ?? null,
+        quote_id: input.quoteId ?? null,
+        inspection_report_id: input.inspectionReportId ?? null,
         type: input.type,
         file_path: path,
         file_name: input.fileName,
         mime_type: input.mimeType,
         size,
         invoice_number: input.invoiceNumber ?? null,
+        quote_number: input.quoteNumber ?? null,
       })
       .select()
       .single();
@@ -120,14 +123,14 @@ export const createSupabaseDocumentRepository = (): DocumentRepository => {
       // Roll back the storage object to keep state consistent.
       await supabase.storage.from(BUCKET).remove([path]);
       throw new Error(
-        `Impossible d'enregistrer le document : ${error?.message ?? "erreur inconnue"}`
+        `Impossible d'enregistrer le document : ${error?.message ?? "erreur inconnue"}`,
       );
     }
     return toDomainDocument(data);
   };
 
   const findInvoiceByBooking = async (
-    bookingId: string
+    bookingId: string,
   ): Promise<Document | null> => {
     const supabase = createAdminClient();
     const { data, error } = await supabase
@@ -142,10 +145,26 @@ export const createSupabaseDocumentRepository = (): DocumentRepository => {
     return toDomainDocument(data);
   };
 
+  const findQuoteDocumentByQuoteId = async (
+    quoteId: string,
+  ): Promise<Document | null> => {
+    const supabase = createAdminClient();
+    const { data, error } = await supabase
+      .from("documents")
+      .select("*")
+      .eq("quote_id", quoteId)
+      .eq("type", "quote")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error || !data) return null;
+    return toDomainDocument(data);
+  };
+
   const replaceContent = async (
     id: string,
     content: Buffer | Uint8Array | ArrayBuffer,
-    mimeType: string
+    mimeType: string,
   ): Promise<Document | null> => {
     const supabase = createAdminClient();
     const existing = await findById(id);
@@ -158,7 +177,7 @@ export const createSupabaseDocumentRepository = (): DocumentRepository => {
       });
     if (uploadError) {
       throw new Error(
-        `Impossible de remplacer le fichier : ${uploadError.message}`
+        `Impossible de remplacer le fichier : ${uploadError.message}`,
       );
     }
     const size =
@@ -185,7 +204,7 @@ export const createSupabaseDocumentRepository = (): DocumentRepository => {
 
   const getSignedUrl = async (
     id: string,
-    options?: { expiresInSeconds?: number; forceDownload?: boolean }
+    options?: { expiresInSeconds?: number; forceDownload?: boolean },
   ): Promise<string | null> => {
     const supabase = createAdminClient();
     const existing = await findById(id);
@@ -209,6 +228,7 @@ export const createSupabaseDocumentRepository = (): DocumentRepository => {
     listByBooking,
     findById,
     findInvoiceByBooking,
+    findQuoteDocumentByQuoteId,
     create,
     replaceContent,
     delete: deleteDocument,

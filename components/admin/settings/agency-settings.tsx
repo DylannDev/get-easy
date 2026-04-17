@@ -106,6 +106,9 @@ export function AgencySettings({ agency, onOpenCreateDialog }: Props) {
     agency.deliveryZones ?? "",
   );
   const [intervalVal, setIntervalVal] = useState(String(agency.hours.interval));
+  const [quoteValidityDays, setQuoteValidityDays] = useState(
+    String(agency.quoteValidityDays ?? 30)
+  );
 
   const initSchedule = agency.schedule ?? DEFAULT_SCHEDULE;
   const [allDays, setAllDays] = useState(initSchedule.allDays);
@@ -230,6 +233,7 @@ export function AgencySettings({ agency, onOpenCreateDialog }: Props) {
       deliveryZones,
       schedule: buildSchedule(),
       interval: Number(intervalVal) || 30,
+      quoteValidityDays: Number(quoteValidityDays) || 30,
     });
     router.refresh();
     setSaving(false);
@@ -496,6 +500,15 @@ export function AgencySettings({ agency, onOpenCreateDialog }: Props) {
                   type="number"
                   placeholder="30"
                   required
+                />
+              </Field>
+              <Field label="Validité des devis (jours)">
+                <Input
+                  value={quoteValidityDays}
+                  onChange={(e) => setQuoteValidityDays(e.target.value)}
+                  type="number"
+                  min={1}
+                  placeholder="30"
                 />
               </Field>
             </CardContent>

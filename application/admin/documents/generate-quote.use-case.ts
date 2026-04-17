@@ -1,37 +1,29 @@
 import type { AgencyRepository } from "@/domain/agency";
-import type { BookingRepository } from "@/domain/booking";
 import type { CustomerRepository } from "@/domain/customer";
 import type { VehicleRepository } from "@/domain/vehicle";
 import type { DocumentRepository, Document } from "@/domain/document";
-import type { OptionRepository } from "@/domain/option";
+import type { QuoteRepository } from "@/domain/quote";
 import { computeBilledDays } from "@/domain/vehicle";
 import { computeOptionLineTotal } from "@/domain/option";
 import { getCountryName } from "@/lib/countries";
 import { fetchImageAsDataUrl } from "@/lib/pdf/fetch-image-as-data-url";
 
 /**
- * Ports spécifiques à la génération de facture : numérotation et rendu PDF.
- * Implémentés côté infrastructure pour que la couche application reste
- * agnostique (testable sans Supabase ni @react-pdf/renderer).
+ * Ports spécifiques à la génération du devis — miroir de ceux de la
+ * facture (numérotation + rendu PDF), câblés dans le composition-root.
  */
-export interface InvoiceNumberAllocator {
+export interface QuoteNumberAllocator {
   allocate(organizationId: string, year: number): Promise<string>;
 }
 
-export interface InvoicePdfRenderer {
-  /**
-   * Produit un Buffer PDF à partir des données de facture. L'implémentation
-   * importe `@react-pdf/renderer` dynamiquement pour ne pas polluer le bundle
-   * client.
-   */
-  render(data: InvoicePdfData): Promise<Buffer>;
+export interface QuotePdfRenderer {
+  render(data: QuotePdfData): Promise<Buffer>;
 }
 
-// Ré-export du type attendu par le renderer (évite un import croisé depuis le
-// template PDF côté application).
-export interface InvoicePdfData {
-  invoiceNumber: string;
+export interface QuotePdfData {
+  quoteNumber: string;
   issuedAt: Date;
+  validUntil: Date;
   agency: {
     name: string;
     address: string;
@@ -74,35 +66,32 @@ export interface InvoicePdfData {
 }
 
 interface Deps {
-  bookingRepository: BookingRepository;
+  quoteRepository: QuoteRepository;
   customerRepository: CustomerRepository;
   vehicleRepository: VehicleRepository;
   agencyRepository: AgencyRepository;
-  optionRepository: OptionRepository;
   documentRepository: DocumentRepository;
-  numberAllocator: InvoiceNumberAllocator;
-  pdfRenderer: InvoicePdfRenderer;
+  numberAllocator: QuoteNumberAllocator;
+  pdfRenderer: QuotePdfRenderer;
 }
 
-export type GenerateInvoiceOutcome =
+export type GenerateQuoteOutcome =
   | { kind: "created"; document: Document }
   | { kind: "regenerated"; document: Document }
   | { kind: "error"; message: string };
 
-export const createGenerateInvoiceUseCase = (deps: Deps) => {
-  const execute = async (
-    bookingId: string
-  ): Promise<GenerateInvoiceOutcome> => {
-    const booking = await deps.bookingRepository.findById(bookingId);
-    if (!booking) return { kind: "error", message: "Réservation introuvable." };
+export const createGenerateQuoteUseCase = (deps: Deps) => {
+  const execute = async (quoteId: string): Promise<GenerateQuoteOutcome> => {
+    const quote = await deps.quoteRepository.findById(quoteId);
+    if (!quote) return { kind: "error", message: "Devis introuvable." };
 
     const [customer, vehicle, agency] = await Promise.all([
-      deps.customerRepository.findById(booking.customerId),
-      deps.vehicleRepository.findById(booking.vehicleId),
-      deps.agencyRepository.findById(booking.agencyId),
+      deps.customerRepository.findById(quote.customerId),
+      deps.vehicleRepository.findById(quote.vehicleId),
+      deps.agencyRepository.findById(quote.agencyId),
     ]);
     if (!customer || !vehicle || !agency) {
-      return { kind: "error", message: "Données de réservation incomplètes." };
+      return { kind: "error", message: "Données du devis incomplètes." };
     }
     if (!agency.organizationId) {
       return {
@@ -111,99 +100,82 @@ export const createGenerateInvoiceUseCase = (deps: Deps) => {
       };
     }
 
-    // Options attachées : on utilise les snapshots persistés pour que le PDF
-    // reflète exactement ce qui a été facturé au moment de la réservation.
-    const bookingOptions = await deps.optionRepository.listForBooking(
-      booking.id
+    // Options figées lors de la création du devis — on réutilise les
+    // snapshots pour que le PDF reste cohérent avec la ligne en BDD,
+    // même si l'agence modifie ensuite le tarif de l'option.
+    const quoteOptions = await deps.quoteRepository.listOptionsForQuote(
+      quote.id
     );
 
-    const startDate = new Date(booking.startDate);
-    const endDate = new Date(booking.endDate);
+    const startDate = new Date(quote.startDate);
+    const endDate = new Date(quote.endDate);
     const numberOfDays = Math.max(1, computeBilledDays(startDate, endDate));
 
-    // Le prix facturé doit refléter ce que le client a réellement payé,
-    // indépendamment d'éventuels changements de tarif ultérieurs. On
-    // reconstitue donc le prix/jour véhicule en retirant du `totalPrice` du
-    // booking (autoritaire, posté par Stripe) la somme des options facturées
-    // à partir de leurs snapshots.
-    const optionsTotalSnapshot = bookingOptions.reduce(
-      (acc, bo) =>
-        acc +
-        computeOptionLineTotal(
-          {
-            unitPrice: bo.unitPriceSnapshot,
-            priceType: bo.priceTypeSnapshot,
-            quantity: bo.quantity,
-            monthlyCap: bo.monthlyCapSnapshot,
-          },
-          numberOfDays
-        ),
-      0
-    );
-    const vehicleTotal = Math.max(0, booking.totalPrice - optionsTotalSnapshot);
+    // `basePrice` déjà figé au moment de la création du devis (gère
+    // les tarifs dégressifs + CGL éventuelles). Prix/jour reconstitué
+    // pour la colonne "Prix unitaire" de la ligne véhicule du PDF.
+    const vehicleTotal = quote.basePrice + quote.cglTotal;
     const pricePerDay = vehicleTotal / numberOfDays;
 
-    const items: InvoicePdfData["items"] = [
+    const items: QuotePdfData["items"] = [
       {
         label: `Location ${vehicle.brand} ${vehicle.model} du ${startDate.toLocaleDateString("fr-FR")} au ${endDate.toLocaleDateString("fr-FR")}`,
         quantity: numberOfDays,
         unitPriceTTC: pricePerDay,
         totalTTC: vehicleTotal,
       },
-      ...bookingOptions.map((bo) => {
-        const isPerDay = bo.priceTypeSnapshot === "per_day";
+      ...quoteOptions.map((qo) => {
+        const isPerDay = qo.priceTypeSnapshot === "per_day";
         const totalForLine = computeOptionLineTotal(
           {
-            unitPrice: bo.unitPriceSnapshot,
-            priceType: bo.priceTypeSnapshot,
-            quantity: bo.quantity,
-            monthlyCap: bo.monthlyCapSnapshot,
+            unitPrice: qo.unitPriceSnapshot,
+            priceType: qo.priceTypeSnapshot,
+            quantity: qo.quantity,
+            monthlyCap: qo.monthlyCapSnapshot,
           },
           numberOfDays
         );
         const capSuffix =
-          bo.monthlyCapSnapshot != null
-            ? ` — plafonné à ${bo.monthlyCapSnapshot.toFixed(2)} €/mois`
+          qo.monthlyCapSnapshot != null
+            ? ` — plafonné à ${qo.monthlyCapSnapshot.toFixed(2)} €/mois`
             : "";
         const label = isPerDay
-          ? `${bo.nameSnapshot} (${bo.unitPriceSnapshot.toFixed(2)} €/j × ${numberOfDays} j${capSuffix})`
-          : `${bo.nameSnapshot} (forfait)`;
+          ? `${qo.nameSnapshot} (${qo.unitPriceSnapshot.toFixed(2)} €/j × ${numberOfDays} j${capSuffix})`
+          : `${qo.nameSnapshot} (forfait)`;
         return {
           label,
-          quantity: bo.quantity,
+          quantity: qo.quantity,
           unitPriceTTC:
-            bo.quantity > 0 ? totalForLine / bo.quantity : totalForLine,
+            qo.quantity > 0 ? totalForLine / qo.quantity : totalForLine,
           totalTTC: totalForLine,
         };
       }),
     ];
-    // Référence autoritaire du montant facturé.
-    const totalTTC = booking.totalPrice;
+    const totalTTC = quote.totalPrice;
 
-    // Facture existante ? → régénération (même numéro, nouveau PDF).
-    const existing = await deps.documentRepository.findInvoiceByBooking(
-      booking.id
+    // Document existant ? → régénération (même numéro, même path).
+    const existing = await deps.documentRepository.findQuoteDocumentByQuoteId(
+      quote.id
     );
 
-    const invoiceNumber =
-      existing?.invoiceNumber ??
+    const quoteNumber =
+      existing?.quoteNumber ??
       (await deps.numberAllocator.allocate(
         agency.organizationId,
         new Date().getFullYear()
       ));
 
-    const issuedAt = existing
-      ? new Date(existing.createdAt) // conserve la date d'émission initiale
-      : new Date();
+    const issuedAt = existing ? new Date(existing.createdAt) : new Date();
+    const validUntil = new Date(quote.validUntil + "T23:59:59");
 
-    // Charge le logo (foncé en priorité) en base64 pour @react-pdf/renderer.
     const logoDataUrl = await fetchImageAsDataUrl(
       agency.logoDarkUrl ?? agency.logoUrl ?? null
     );
 
-    const pdfData: InvoicePdfData = {
-      invoiceNumber,
+    const pdfData: QuotePdfData = {
+      quoteNumber,
       issuedAt,
+      validUntil,
       agency: {
         name: agency.name,
         address: agency.address,
@@ -220,8 +192,6 @@ export const createGenerateInvoiceUseCase = (deps: Deps) => {
         rcsNumber: agency.rcsNumber ?? null,
         siret: agency.siret ?? null,
         tvaIntracom: agency.tvaIntracom ?? null,
-        // Data URL base64 — @react-pdf/renderer peut l'intégrer sans devoir
-        // fetcher une URL distante au moment du rendu.
         logoUrl: logoDataUrl,
         vatEnabled: agency.vatEnabled ?? false,
       },
@@ -233,8 +203,6 @@ export const createGenerateInvoiceUseCase = (deps: Deps) => {
         address: customer.address,
         postalCode: customer.postalCode,
         city: customer.city,
-        // Le client stocke le code ISO (ex. "GF") → on résout en nom long
-        // pour la facture, avec fallback sur le code si non résolvable.
         country: getCountryName(customer.country) ?? customer.country,
       },
       vehicle: {
@@ -251,12 +219,9 @@ export const createGenerateInvoiceUseCase = (deps: Deps) => {
     };
 
     const pdfBuffer = await deps.pdfRenderer.render(pdfData);
-
-    const fileName = `${invoiceNumber}.pdf`;
+    const fileName = `${quoteNumber}.pdf`;
 
     if (existing) {
-      // Régénération : on remplace le binaire au même chemin, on garde la
-      // même ligne documents (numéro + date d'émission préservés).
       const updated = await deps.documentRepository.replaceContent(
         existing.id,
         pdfBuffer,
@@ -268,18 +233,17 @@ export const createGenerateInvoiceUseCase = (deps: Deps) => {
       return { kind: "regenerated", document: updated };
     }
 
-    // Path stable pour faciliter la régénération future (même organisation,
-    // même agence, même numéro → même emplacement).
-    const filePath = `${agency.organizationId}/${agency.id}/invoice/${fileName}`;
+    // Path stable : <org>/<agency>/quote/<DEV-YYYY-NNN>.pdf
+    const filePath = `${agency.organizationId}/${agency.id}/quote/${fileName}`;
 
     const created = await deps.documentRepository.create({
       agencyId: agency.id,
-      bookingId: booking.id,
-      type: "invoice",
+      quoteId: quote.id,
+      type: "quote",
       content: pdfBuffer,
       fileName,
       mimeType: "application/pdf",
-      invoiceNumber,
+      quoteNumber,
       filePath,
       upsert: true,
     });
@@ -289,6 +253,4 @@ export const createGenerateInvoiceUseCase = (deps: Deps) => {
   return { execute };
 };
 
-export type GenerateInvoiceUseCase = ReturnType<
-  typeof createGenerateInvoiceUseCase
->;
+export type GenerateQuoteUseCase = ReturnType<typeof createGenerateQuoteUseCase>;

@@ -15,6 +15,9 @@ import {
   createSupabaseOptionRepository,
   createSupabaseDocumentRepository,
   createSupabaseContractFieldsRepository,
+  createSupabaseCustomerDocumentRepository,
+  createSupabaseQuoteRepository,
+  createSupabaseInspectionRepository,
 } from "@/infrastructure/supabase/repositories";
 import { createStripePaymentGateway } from "@/infrastructure/stripe";
 import { createResendNotifier } from "@/infrastructure/resend";
@@ -27,6 +30,9 @@ import type { PaymentRepository, PaymentGateway } from "@/domain/payment";
 import type { OptionRepository } from "@/domain/option";
 import type { DocumentRepository } from "@/domain/document";
 import type { ContractFieldsRepository } from "@/domain/contract";
+import type { CustomerDocumentRepository } from "@/domain/customer-document";
+import type { QuoteRepository } from "@/domain/quote";
+import type { InspectionRepository } from "@/domain/inspection";
 import type { Notifier } from "@/application/notifications/notification.port";
 
 import {
@@ -74,7 +80,18 @@ import {
   type GenerateInvoiceUseCase,
 } from "@/application/admin/documents/generate-invoice.use-case";
 import { createSupabaseInvoiceNumberAllocator } from "@/infrastructure/supabase/services/invoice-number-allocator";
+import { createSupabaseQuoteNumberAllocator } from "@/infrastructure/supabase/services/quote-number-allocator";
 import { createReactPdfInvoiceRenderer } from "@/infrastructure/pdf/invoice-pdf-renderer";
+import { createReactPdfQuoteRenderer } from "@/infrastructure/pdf/quote-pdf-renderer";
+import { createReactPdfInspectionRenderer } from "@/infrastructure/pdf/inspection-pdf-renderer";
+import {
+  createGenerateQuoteUseCase,
+  type GenerateQuoteUseCase,
+} from "@/application/admin/documents/generate-quote.use-case";
+import {
+  createGenerateInspectionUseCase,
+  type GenerateInspectionUseCase,
+} from "@/application/admin/documents/generate-inspection.use-case";
 import {
   createGenerateContractUseCase,
   type GenerateContractUseCase,
@@ -132,6 +149,9 @@ export interface Container {
   optionRepository: OptionRepository;
   documentRepository: DocumentRepository;
   contractFieldsRepository: ContractFieldsRepository;
+  customerDocumentRepository: CustomerDocumentRepository;
+  quoteRepository: QuoteRepository;
+  inspectionRepository: InspectionRepository;
 
   // Adapters
   paymentGateway: PaymentGateway;
@@ -160,6 +180,8 @@ export interface Container {
   generateInvoiceUseCase: GenerateInvoiceUseCase;
   generateContractUseCase: GenerateContractUseCase;
   saveContractFieldsUseCase: SaveContractFieldsUseCase;
+  generateQuoteUseCase: GenerateQuoteUseCase;
+  generateInspectionUseCase: GenerateInspectionUseCase;
 }
 
 let cachedContainer: Container | null = null;
@@ -176,6 +198,10 @@ export const getContainer = (): Container => {
   const optionRepository = createSupabaseOptionRepository();
   const documentRepository = createSupabaseDocumentRepository();
   const contractFieldsRepository = createSupabaseContractFieldsRepository();
+  const customerDocumentRepository =
+    createSupabaseCustomerDocumentRepository();
+  const quoteRepository = createSupabaseQuoteRepository();
+  const inspectionRepository = createSupabaseInspectionRepository();
 
   // Adapters — env access happens here, in the composition root.
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -257,6 +283,16 @@ export const getContainer = (): Container => {
     pdfRenderer: createReactPdfContractRenderer(),
   });
 
+  const generateQuoteUseCase = createGenerateQuoteUseCase({
+    quoteRepository,
+    customerRepository,
+    vehicleRepository,
+    agencyRepository,
+    documentRepository,
+    numberAllocator: createSupabaseQuoteNumberAllocator(),
+    pdfRenderer: createReactPdfQuoteRenderer(),
+  });
+
   cachedContainer = {
     vehicleRepository,
     agencyRepository,
@@ -266,6 +302,9 @@ export const getContainer = (): Container => {
     optionRepository,
     documentRepository,
     contractFieldsRepository,
+    customerDocumentRepository,
+    quoteRepository,
+    inspectionRepository,
     paymentGateway,
     notifier,
     initiateBookingUseCase,
@@ -301,6 +340,16 @@ export const getContainer = (): Container => {
     saveContractFieldsUseCase: createSaveContractFieldsUseCase({
       contractFieldsRepository,
       generateContractUseCase,
+    }),
+    generateQuoteUseCase,
+    generateInspectionUseCase: createGenerateInspectionUseCase({
+      inspectionRepository,
+      bookingRepository,
+      customerRepository,
+      vehicleRepository,
+      agencyRepository,
+      documentRepository,
+      pdfRenderer: createReactPdfInspectionRenderer(),
     }),
   };
   return cachedContainer;

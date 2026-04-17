@@ -16,6 +16,8 @@ interface UpdateAgencyInput {
   deliveryZones: string;
   schedule: WeekSchedule;
   interval: number;
+  /** Durée de validité par défaut des devis (en jours, min 1). */
+  quoteValidityDays: number;
 }
 
 export async function updateAgency(agencyId: string, input: UpdateAgencyInput) {
@@ -42,6 +44,7 @@ export async function updateAgency(agencyId: string, input: UpdateAgencyInput) {
       interval: input.interval,
       open_time: firstEnabledDay?.openTime ?? "07:00",
       close_time: firstEnabledDay?.closeTime ?? "22:00",
+      quote_validity_days: Math.max(1, Math.round(input.quoteValidityDays)),
     })
     .eq("id", agencyId);
 

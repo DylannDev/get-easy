@@ -77,6 +77,7 @@ export function toDomainAgency(
         | string
         | null
         | undefined) ?? null,
+    quoteValidityDays: row.quote_validity_days ?? 30,
     vehicles,
   };
 }

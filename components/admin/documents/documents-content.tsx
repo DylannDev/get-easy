@@ -12,7 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -46,13 +46,36 @@ interface Props {
   documents: Document[];
   bookingById: Record<string, Booking>;
   bookingIdFilter?: string;
-  /** Optional slot rendered to the left of the "Téléverser" button. */
+  /** Optional slot rendered to the left of the "Importer" button. */
   headerExtra?: React.ReactNode;
+}
+
+/**
+ * Structure enrichie côté serveur pour la vue Documents tabbée : on
+ * joint le client (via booking ou quote) et les méta devis (valid_until)
+ * pour éviter des fetchs supplémentaires côté client.
+ */
+export interface EnrichedDocument {
+  id: string;
+  type: DocumentType;
+  fileName: string;
+  mimeType: string;
+  size: number;
+  createdAt: string;
+  bookingId: string | null;
+  quoteId: string | null;
+  invoiceNumber: string | null;
+  quoteNumber: string | null;
+  customer: { id: string; firstName: string; lastName: string } | null;
+  booking: { id: string; startDate: string; endDate: string } | null;
+  quoteValidUntil: string | null;
 }
 
 const TYPE_LABELS: Record<DocumentType, string> = {
   invoice: "Facture",
   contract: "Contrat",
+  quote: "Devis",
+  inspection: "État des lieux",
   other: "Autre",
 };
 
@@ -123,7 +146,7 @@ export function DocumentsContent({
               onClick={() => setUploadOpen(true)}
             >
               <PiPlus className="size-4" />
-              Téléverser un document
+              Importer un document
             </Button>
           </div>
         </CardHeader>
@@ -174,7 +197,10 @@ export function DocumentsContent({
                             href={`/admin/reservations/${booking.id}`}
                             className="text-black underline hover:no-underline"
                           >
-                            {formatDateCayenne(booking.startDate, "dd MMM yyyy")}
+                            {formatDateCayenne(
+                              booking.startDate,
+                              "dd MMM yyyy",
+                            )}
                           </Link>
                         ) : (
                           <span className="text-muted-foreground">—</span>
@@ -230,16 +256,13 @@ export function DocumentsContent({
         bookingId={bookingIdFilter}
       />
 
-      <AlertDialog
-        open={!!deleteId}
-        onOpenChange={() => setDeleteId(null)}
-      >
+      <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Supprimer ce document ?</AlertDialogTitle>
             <AlertDialogDescription>
-              Le fichier sera définitivement supprimé du stockage. Cette
-              action est irréversible.
+              Le fichier sera définitivement supprimé du stockage. Cette action
+              est irréversible.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -248,7 +271,7 @@ export function DocumentsContent({
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
-              className="border-2 border-red-500 bg-red-500 text-white hover:bg-red-600"
+              className={buttonVariants({ variant: "red" })}
             >
               Supprimer
             </AlertDialogAction>
