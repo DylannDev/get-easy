@@ -66,6 +66,7 @@ export const BookingPageClient = ({
           unitPrice: o.price,
           priceType: o.priceType,
           quantity: qty,
+          monthlyCap: o.capEnabled ? o.monthlyCap : null,
         };
       })
       .filter((l): l is NonNullable<typeof l> => l !== null);

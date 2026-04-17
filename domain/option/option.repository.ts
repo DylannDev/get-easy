@@ -9,6 +9,8 @@ export interface CreateOptionInput {
   maxQuantity: number;
   active?: boolean;
   sortOrder?: number;
+  capEnabled?: boolean;
+  monthlyCap?: number | null;
 }
 
 export interface UpdateOptionInput {
@@ -19,6 +21,8 @@ export interface UpdateOptionInput {
   maxQuantity?: number;
   active?: boolean;
   sortOrder?: number;
+  capEnabled?: boolean;
+  monthlyCap?: number | null;
 }
 
 export interface AttachOptionToBookingInput {
@@ -28,6 +32,7 @@ export interface AttachOptionToBookingInput {
   unitPriceSnapshot: number;
   priceTypeSnapshot: OptionPriceType;
   nameSnapshot: string;
+  monthlyCapSnapshot: number | null;
 }
 
 export interface OptionRepository {

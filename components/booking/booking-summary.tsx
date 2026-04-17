@@ -9,6 +9,7 @@ import { DateTimePickerMobile } from "@/components/date-time-picker/date-time-pi
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { getApplicablePricePerDay } from "@/domain/vehicle";
 import { computeOptionLineTotal } from "@/domain/option";
+import { formatMoney } from "@/lib/format-money";
 
 interface BookingSummaryProps {
   vehicle: Vehicle;
@@ -159,10 +160,10 @@ export const BookingSummary = ({
             <span className="font-semibold">
               {savings > 0 && (
                 <span className="line-through text-gray-400 text-[13px] mr-1">
-                  {vehicle.pricePerDay} €
+                  {formatMoney(vehicle.pricePerDay)}
                 </span>
               )}
-              {applicablePricePerDay} €
+              {formatMoney(applicablePricePerDay)}
             </span>
           </div>
           <div className="flex justify-between text-sm">
@@ -175,7 +176,7 @@ export const BookingSummary = ({
             <div className="flex justify-between text-sm">
               <span className="text-gray-600">Total avant remise</span>
               <span className="font-semibold line-through text-gray-400 mr-1">
-                {(vehicle.pricePerDay * numberOfDays).toLocaleString("fr-FR")} €
+                {formatMoney(vehicle.pricePerDay * numberOfDays)}
               </span>
             </div>
           )}
@@ -185,7 +186,7 @@ export const BookingSummary = ({
                 Remise {numberOfDays} jour{numberOfDays > 1 ? "s" : ""}
               </span>
               <span className="font-semibold text-black bg-green px-2 py-0.5 rounded-sm">
-                -{savings} €
+                -{formatMoney(savings)}
               </span>
             </div>
           )}
@@ -199,6 +200,7 @@ export const BookingSummary = ({
                 unitPrice: option.price,
                 priceType: option.priceType,
                 quantity: qty,
+                monthlyCap: option.capEnabled ? option.monthlyCap : null,
               },
               numberOfDays
             );
@@ -208,7 +210,7 @@ export const BookingSummary = ({
                   {option.name}
                   {qty > 1 ? ` ×${qty}` : ""}
                 </span>
-                <span className="font-semibold">{line.toFixed(2)} €</span>
+                <span className="font-semibold">{formatMoney(line)}</span>
               </div>
             );
           })}
@@ -221,7 +223,7 @@ export const BookingSummary = ({
           <h4 className="text-lg font-semibold">Total</h4>
           <div className="flex items-center">
             <span className="text-2xl font-bold text-black">
-              {(totalPrice + optionsTotal).toLocaleString("fr-FR")} €
+              {formatMoney(totalPrice + optionsTotal)}
             </span>
           </div>
         </div>

@@ -59,6 +59,8 @@ export const createSupabaseOptionRepository = (): OptionRepository => {
         max_quantity: input.maxQuantity,
         active: input.active ?? true,
         sort_order: input.sortOrder ?? 0,
+        cap_enabled: input.capEnabled ?? false,
+        monthly_cap: input.monthlyCap ?? null,
       })
       .select()
       .single();
@@ -81,6 +83,8 @@ export const createSupabaseOptionRepository = (): OptionRepository => {
     if (input.maxQuantity !== undefined) patch.max_quantity = input.maxQuantity;
     if (input.active !== undefined) patch.active = input.active;
     if (input.sortOrder !== undefined) patch.sort_order = input.sortOrder;
+    if (input.capEnabled !== undefined) patch.cap_enabled = input.capEnabled;
+    if (input.monthlyCap !== undefined) patch.monthly_cap = input.monthlyCap;
 
     const { data, error } = await supabase
       .from("options")
@@ -121,6 +125,7 @@ export const createSupabaseOptionRepository = (): OptionRepository => {
         unit_price_snapshot: input.unitPriceSnapshot,
         price_type_snapshot: input.priceTypeSnapshot,
         name_snapshot: input.nameSnapshot,
+        monthly_cap_snapshot: input.monthlyCapSnapshot,
       })
       .select()
       .single();

@@ -11,7 +11,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import {
   AlertDialog,
@@ -28,6 +28,7 @@ import { OptionDialog } from "./option-dialog";
 import { deleteOption, toggleOption } from "@/actions/admin/options";
 import { PiPlus, PiPencil, PiTrash } from "react-icons/pi";
 import type { Option } from "@/domain/option";
+import { formatMoney } from "@/lib/format-money";
 
 interface Props {
   options: Option[];
@@ -79,7 +80,18 @@ export function OptionsContent({ options }: Props) {
 
   const formatPrice = (option: Option) => {
     const suffix = option.priceType === "per_day" ? "/ jour" : "forfait";
-    return `${option.price.toFixed(2)} € ${suffix}`;
+    return `${formatMoney(option.price)} ${suffix}`;
+  };
+
+  const formatCap = (option: Option): string => {
+    if (
+      option.priceType === "per_day" &&
+      option.capEnabled &&
+      option.monthlyCap != null
+    ) {
+      return `${formatMoney(option.monthlyCap)}/mois`;
+    }
+    return "—";
   };
 
   return (
@@ -108,6 +120,7 @@ export function OptionsContent({ options }: Props) {
                   <TableHead>Nom</TableHead>
                   <TableHead>Description</TableHead>
                   <TableHead>Tarif</TableHead>
+                  <TableHead>Plafond</TableHead>
                   <TableHead className="text-center">Qté max</TableHead>
                   <TableHead className="text-center">Actif</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -127,6 +140,9 @@ export function OptionsContent({ options }: Props) {
                     </TableCell>
                     <TableCell className="text-sm">
                       {formatPrice(option)}
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {formatCap(option)}
                     </TableCell>
                     <TableCell className="text-sm text-center">
                       {option.maxQuantity}
@@ -183,7 +199,7 @@ export function OptionsContent({ options }: Props) {
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
-              className="border-2 border-red-500 bg-red-500 text-white hover:bg-red-600"
+              className={buttonVariants({ variant: "red" })}
             >
               Supprimer
             </AlertDialogAction>

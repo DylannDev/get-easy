@@ -239,6 +239,10 @@ export const createStartCheckoutUseCase = (deps: StartCheckoutDeps) => {
           unitPriceSnapshot: option.price,
           priceTypeSnapshot: option.priceType,
           nameSnapshot: option.name,
+          monthlyCapSnapshot:
+            option.capEnabled && option.priceType === "per_day"
+              ? option.monthlyCap
+              : null,
         });
       }
 

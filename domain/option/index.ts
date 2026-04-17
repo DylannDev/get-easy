@@ -8,4 +8,5 @@ export type {
 export {
   computeOptionLineTotal,
   computeOptionsTotal,
+  monthsStartedFor,
 } from "./services/options-pricing.service";

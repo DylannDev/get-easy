@@ -3,6 +3,8 @@
 import { Card, CardTitle, CardContent } from "@/components/ui/card";
 import { PiMinus, PiPlus } from "react-icons/pi";
 import type { Option } from "@/domain/option";
+import { computeOptionLineTotal } from "@/domain/option";
+import { formatMoney } from "@/lib/format-money";
 
 interface Props {
   options: Option[];
@@ -20,17 +22,27 @@ export const BookingOptionsSelector = ({
   if (options.length === 0) return null;
 
   const formatPrice = (o: Option) => {
-    if (o.priceType === "per_day") {
-      return `${o.price.toFixed(2)} € / jour`;
+    const base =
+      o.priceType === "per_day"
+        ? `${formatMoney(o.price)} / jour`
+        : `${formatMoney(o.price)} forfait`;
+    if (o.priceType === "per_day" && o.capEnabled && o.monthlyCap != null) {
+      return `${base} · plafonné à ${formatMoney(o.monthlyCap)}/mois`;
     }
-    return `${o.price.toFixed(2)} € forfait`;
+    return base;
   };
 
   const lineTotal = (o: Option, qty: number) => {
     if (qty <= 0) return 0;
-    return o.priceType === "per_day"
-      ? o.price * qty * numberOfDays
-      : o.price * qty;
+    return computeOptionLineTotal(
+      {
+        unitPrice: o.price,
+        priceType: o.priceType,
+        quantity: qty,
+        monthlyCap: o.capEnabled ? o.monthlyCap : null,
+      },
+      numberOfDays,
+    );
   };
 
   return (
@@ -57,7 +69,7 @@ export const BookingOptionsSelector = ({
                     {formatPrice(option)}
                     {qty > 0 && numberOfDays > 0 && (
                       <span className="ml-2 font-semibold text-black">
-                        · {total.toFixed(2)} €
+                        · {formatMoney(total)}
                       </span>
                     )}
                   </p>

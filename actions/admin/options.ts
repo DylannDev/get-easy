@@ -15,6 +15,8 @@ const createOptionSchema = z.object({
   maxQuantity: z.number().int().min(1).max(99),
   active: z.boolean().optional(),
   sortOrder: z.number().int().min(0).optional(),
+  capEnabled: z.boolean().optional(),
+  monthlyCap: z.number().min(0).optional().nullable(),
 });
 
 const updateOptionSchema = z.object({
@@ -25,6 +27,8 @@ const updateOptionSchema = z.object({
   maxQuantity: z.number().int().min(1).max(99).optional(),
   active: z.boolean().optional(),
   sortOrder: z.number().int().min(0).optional(),
+  capEnabled: z.boolean().optional(),
+  monthlyCap: z.number().min(0).optional().nullable(),
 });
 
 export type CreateOptionFormInput = z.input<typeof createOptionSchema>;
