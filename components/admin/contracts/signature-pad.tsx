@@ -70,21 +70,9 @@ export function SignaturePad({ label, initialValue, onChange }: Props) {
 
   const getCtx = () => canvasRef.current?.getContext("2d") ?? null;
 
-  // Si le parent réinitialise `initialValue` à null (ex. "Supprimer" dans
-  // la card parent), on vide le canvas et tous les états internes.
-  useEffect(() => {
-    if (initialValue === null) {
-      const canvas = canvasRef.current;
-      const ctx = getCtx();
-      if (canvas && ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
-      drawingRef.current = false;
-      lastPointRef.current = null;
-      hasDrawnRef.current = false;
-      setHasInk(false);
-      setResigning(false);
-      setToggleMode(false);
-    }
-  }, [initialValue]);
+  // Le reset du composant (quand le parent veut réinitialiser la
+  // signature) se fait via le prop `key` côté parent — pas besoin
+  // de synchroniser des states internes via useEffect ici.
 
   const pointFromEvent = (e: React.PointerEvent<HTMLCanvasElement>): Point => {
     const canvas = canvasRef.current;
