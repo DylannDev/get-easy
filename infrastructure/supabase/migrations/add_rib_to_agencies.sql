@@ -1,0 +1,4 @@
+-- Phase 8B — RIB sur les devis.
+ALTER TABLE agencies
+  ADD COLUMN IF NOT EXISTS rib TEXT,
+  ADD COLUMN IF NOT EXISTS show_rib_on_quote BOOLEAN NOT NULL DEFAULT FALSE;
