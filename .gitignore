@@ -42,6 +42,11 @@ next-env.d.ts
 
 .cursor
 
+# Claude Code / agents tooling (local-only, per-machine config)
+.claude/
+.agents/
+skills-lock.json
+
 # Internal planning docs (not tracked in git)
 DASHBOARD_PLAN.md
 SAAS_ROADMAP.md
