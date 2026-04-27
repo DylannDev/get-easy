@@ -6,6 +6,8 @@ export interface AdminSession {
   email: string;
   organizationId: string;
   role: string;
+  firstName: string | null;
+  lastName: string | null;
 }
 
 /**
@@ -23,7 +25,7 @@ export const getAdminSession = async (): Promise<AdminSession | null> => {
   const admin = createAdminClient();
   const { data: profile } = await admin
     .from("admin_profiles")
-    .select("organization_id, role")
+    .select("organization_id, role, first_name, last_name")
     .eq("id", user.id)
     .single();
 
@@ -34,5 +36,7 @@ export const getAdminSession = async (): Promise<AdminSession | null> => {
     email: user.email ?? "",
     organizationId: profile.organization_id,
     role: profile.role,
+    firstName: profile.first_name ?? null,
+    lastName: profile.last_name ?? null,
   };
 };

@@ -1,8 +1,8 @@
-import * as React from "react"
-import { cva, type VariantProps } from "class-variance-authority"
-import { Slot } from "radix-ui"
+import * as React from "react";
+import { cva, type VariantProps } from "class-variance-authority";
+import { Slot } from "radix-ui";
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
   "inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap transition-all outline-none disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
@@ -14,10 +14,8 @@ const buttonVariants = cva(
           "border-2 border-black bg-black text-green hover:bg-black/90 active:scale-95 rounded-xl font-title cursor-pointer focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-black disabled:cursor-not-allowed disabled:scale-100 disabled:opacity-80",
         outline:
           "border-2 border-black bg-transparent text-black hover:bg-black hover:text-green active:scale-95 rounded-xl font-title cursor-pointer",
-        red:
-          "border-2 border-red-500 bg-red-500 text-white hover:bg-red-600 hover:border-red-600 active:scale-95 rounded-xl font-title cursor-pointer focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-red-500 disabled:cursor-not-allowed disabled:scale-100 disabled:opacity-80",
-        ghost:
-          "font-sans",
+        red: "border-2 border-red-500 bg-red-500 text-white hover:bg-red-600 hover:border-red-600 active:scale-95 rounded-xl font-title cursor-pointer focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-red-500 disabled:cursor-not-allowed disabled:scale-100 disabled:opacity-80",
+        ghost: "font-sans cursor-pointer",
         link: "text-primary underline-offset-4 hover:underline",
         // Shadcn standard styles (admin dashboard)
         destructive:
@@ -40,7 +38,8 @@ const buttonVariants = cva(
         icon: "size-10",
         // Shadcn standard sizes (admin dashboard)
         "admin-default": "h-9 px-4 py-2 has-[>svg]:px-3",
-        "admin-xs": "h-6 gap-1 rounded-md px-2 text-xs has-[>svg]:px-1.5 [&_svg:not([class*='size-'])]:size-3",
+        "admin-xs":
+          "h-6 gap-1 rounded-md px-2 text-xs has-[>svg]:px-1.5 [&_svg:not([class*='size-'])]:size-3",
         "admin-sm": "h-8 gap-1.5 rounded-md px-3 has-[>svg]:px-2.5",
         "admin-lg": "h-10 rounded-md px-6 has-[>svg]:px-4",
         "icon-xs": "size-6 rounded-md [&_svg:not([class*='size-'])]:size-3",
@@ -52,8 +51,8 @@ const buttonVariants = cva(
       variant: "default",
       size: "default",
     },
-  }
-)
+  },
+);
 
 function Button({
   className,
@@ -63,9 +62,9 @@ function Button({
   ...props
 }: React.ComponentProps<"button"> &
   VariantProps<typeof buttonVariants> & {
-    asChild?: boolean
+    asChild?: boolean;
   }) {
-  const Comp = asChild ? Slot.Root : "button"
+  const Comp = asChild ? Slot.Root : "button";
 
   return (
     <Comp
@@ -75,7 +74,7 @@ function Button({
       className={cn(buttonVariants({ variant, size, className }))}
       {...props}
     />
-  )
+  );
 }
 
-export { Button, buttonVariants }
+export { Button, buttonVariants };

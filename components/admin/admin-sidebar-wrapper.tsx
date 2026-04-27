@@ -14,12 +14,16 @@ interface AgencyInfo {
 
 interface Props {
   email: string;
+  firstName: string | null;
+  lastName: string | null;
   agencies: AgencyInfo[];
   activeAgencyId: string;
 }
 
 export function AdminSidebarWrapper({
   email,
+  firstName,
+  lastName,
   agencies,
   activeAgencyId,
 }: Props) {
@@ -39,6 +43,8 @@ export function AdminSidebarWrapper({
       {isPending && <ContentOverlay />}
       <AppSidebar
         email={email}
+        firstName={firstName}
+        lastName={lastName}
         agencies={agencies}
         currentAgencyId={activeAgencyId}
         onAgencyChange={handleAgencyChange}

@@ -32,6 +32,8 @@ export default async function AdminDashboardLayout({
     <SidebarProvider className="h-dvh">
       <AdminSidebarWrapper
         email={session.email}
+        firstName={session.firstName}
+        lastName={session.lastName}
         agencies={agencyInfos}
         activeAgencyId={await getActiveAgency()}
       />

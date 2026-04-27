@@ -75,6 +75,8 @@ interface AgencyInfo {
 
 interface AppSidebarProps {
   email: string;
+  firstName?: string | null;
+  lastName?: string | null;
   agencies?: AgencyInfo[];
   currentAgencyId?: string;
   onAgencyChange?: (agencyId: string) => void;
@@ -82,10 +84,21 @@ interface AppSidebarProps {
 
 export function AppSidebar({
   email,
+  firstName,
+  lastName,
   agencies = [],
   currentAgencyId,
   onAgencyChange,
 }: AppSidebarProps) {
+  // Display name : prénom + nom si renseignés, sinon fallback sur l'email.
+  const fullName =
+    firstName || lastName
+      ? [firstName, lastName].filter(Boolean).join(" ")
+      : null;
+  // Initiale pour l'avatar : 1re lettre du prénom > du nom > de l'email.
+  const avatarInitial = (firstName || lastName || email || "?")
+    .charAt(0)
+    .toUpperCase();
   const pathname = usePathname();
   const { isMobile, setOpenMobile } = useSidebar();
 
@@ -105,11 +118,16 @@ export function AppSidebar({
     const lastSeen = getLastSeenTimestamp();
     getNewBookingsCount(lastSeen).then(setNewBookingsCount);
   }, [pathname]);
-  const currentAgency = agencies.find((a) => a.id === currentAgencyId) ?? agencies[0];
+  const currentAgency =
+    agencies.find((a) => a.id === currentAgencyId) ?? agencies[0];
   const showAgencySwitcher = agencies.length > 1;
 
   const renderNavItems = (
-    items: { label: string; href: string; icon: React.ComponentType<{ className?: string }> }[]
+    items: {
+      label: string;
+      href: string;
+      icon: React.ComponentType<{ className?: string }>;
+    }[],
   ) => (
     <SidebarMenu>
       {items.map((item) => {
@@ -201,24 +219,51 @@ export function AppSidebar({
 
         <SidebarGroup>
           <SidebarGroupLabel>Autres</SidebarGroupLabel>
-          <SidebarGroupContent>{renderNavItems(otherNav)}</SidebarGroupContent>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {otherNav.map((item) => (
+                <SidebarMenuItem key={item.href}>
+                  <SidebarMenuButton asChild isActive={isActive(item.href)}>
+                    <Link href={item.href} onClick={handleNavClick}>
+                      <item.icon className="size-4" />
+                      <span className="flex-1">{item.label}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+              <SidebarMenuItem>
+                <form action={signOut} className="w-full">
+                  <SidebarMenuButton asChild>
+                    <button type="submit" className="w-full cursor-pointer">
+                      <PiSignOut className="size-4" />
+                      <span className="flex-1 text-left">Déconnexion</span>
+                    </button>
+                  </SidebarMenuButton>
+                </form>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="p-4 border-t border-sidebar-border">
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-muted-foreground truncate max-w-[140px]">
-            {email}
-          </span>
-          <form action={signOut}>
-            <button
-              type="submit"
-              className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-              title="Déconnexion"
-            >
-              <PiSignOut className="size-4" />
-            </button>
-          </form>
+      <SidebarFooter className="border-t border-sidebar-border">
+        <div className="flex items-center gap-2.5 min-w-0 p-3">
+          <div
+            className="flex size-9 shrink-0 items-center justify-center rounded-full bg-sidebar-primary text-sidebar-primary-foreground text-sm font-semibold uppercase"
+            aria-hidden
+          >
+            {avatarInitial}
+          </div>
+          <div className="min-w-0 flex-1">
+            {fullName && (
+              <p className="text-sm font-medium text-sidebar-foreground truncate">
+                {fullName}
+              </p>
+            )}
+            <p className="text-xs text-sidebar-foreground/70 truncate">
+              {email}
+            </p>
+          </div>
         </div>
       </SidebarFooter>
     </Sidebar>
