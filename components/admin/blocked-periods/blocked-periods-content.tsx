@@ -78,16 +78,21 @@ export function BlockedPeriodsContent({ periods, vehicles }: Props) {
       {loading && <ContentOverlay />}
 
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+        <CardHeader className="flex flex-col gap-3 space-y-0 pb-4 sm:flex-row sm:items-center sm:justify-between">
           <span className="text-base font-semibold">Périodes bloquées</span>
-          <Button variant="default" size="sm" onClick={handleCreate}>
+          <Button
+            variant="default"
+            size="sm"
+            className="w-full sm:w-auto"
+            onClick={handleCreate}
+          >
             <PiPlus className="size-4" />
             Ajouter une indisponibilité
           </Button>
         </CardHeader>
         <CardContent className="p-0">
           {periods.length === 0 ? (
-            <p className="text-sm text-muted-foreground p-6">
+            <p className="text-sm text-muted-foreground p-4 sm:p-6">
               Aucune indisponibilité enregistrée.
             </p>
           ) : (

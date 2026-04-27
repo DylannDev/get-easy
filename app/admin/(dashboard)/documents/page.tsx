@@ -2,6 +2,7 @@ import { AdminHeader } from "@/components/admin/admin-header";
 import { PageHeader } from "@/components/admin/page-header";
 import type { EnrichedDocument } from "@/components/admin/documents/documents-content";
 import { DocumentsTabbedView } from "@/components/admin/documents/documents-tabbed-view";
+import { DocumentsActions } from "@/components/admin/documents/documents-actions";
 import { getContainer } from "@/composition-root/container";
 import { getActiveAgency } from "@/lib/admin/get-active-agency";
 
@@ -12,6 +13,7 @@ export default async function DocumentsPage() {
     bookingRepository,
     quoteRepository,
     customerRepository,
+    inspectionRepository,
   } = getContainer();
 
   const documents = await listDocumentsUseCase.byAgency(agencyId);
@@ -34,10 +36,20 @@ export default async function DocumentsPage() {
         .filter((id): id is string => !!id)
     )
   );
+  const inspectionReportIds = Array.from(
+    new Set(
+      documents
+        .map((d) => d.inspectionReportId)
+        .filter((id): id is string => !!id)
+    )
+  );
 
-  const [bookings, quotes] = await Promise.all([
+  const [bookings, quotes, inspectionReports] = await Promise.all([
     Promise.all(bookingIds.map((id) => bookingRepository.findById(id))),
     Promise.all(quoteIds.map((id) => quoteRepository.findById(id))),
+    Promise.all(
+      inspectionReportIds.map((id) => inspectionRepository.findById(id))
+    ),
   ]);
 
   const bookingById = new Map(
@@ -49,6 +61,11 @@ export default async function DocumentsPage() {
     quotes
       .filter((q): q is NonNullable<typeof q> => !!q)
       .map((q) => [q.id, q])
+  );
+  const inspectionReportById = new Map(
+    inspectionReports
+      .filter((r): r is NonNullable<typeof r> => !!r)
+      .map((r) => [r.id, r])
   );
 
   // Customers déduits des bookings ET des quotes.
@@ -69,6 +86,9 @@ export default async function DocumentsPage() {
   const enriched: EnrichedDocument[] = documents.map((doc) => {
     const booking = doc.bookingId ? bookingById.get(doc.bookingId) : null;
     const quote = doc.quoteId ? quoteById.get(doc.quoteId) : null;
+    const inspectionReport = doc.inspectionReportId
+      ? inspectionReportById.get(doc.inspectionReportId)
+      : null;
     const customerId = booking?.customerId ?? quote?.customerId ?? null;
     const customer = customerId ? customerById.get(customerId) : null;
     return {
@@ -97,6 +117,7 @@ export default async function DocumentsPage() {
           }
         : null,
       quoteValidUntil: quote?.validUntil ?? null,
+      inspectionType: inspectionReport?.type ?? null,
     };
   });
 
@@ -105,10 +126,11 @@ export default async function DocumentsPage() {
       <AdminHeader>
         <span className="text-sm text-muted-foreground">Documents</span>
       </AdminHeader>
-      <div className="flex-1 space-y-6 p-6 overflow-y-auto">
+      <div className="flex-1 space-y-6 p-4 sm:p-6 overflow-y-auto">
         <PageHeader
           title="Documents"
           description={`${documents.length} document${documents.length > 1 ? "s" : ""}`}
+          action={<DocumentsActions />}
         />
         <DocumentsTabbedView documents={enriched} />
       </div>

@@ -317,6 +317,10 @@ export const useBookingSummary = ({
         const params = new URLSearchParams();
         params.set("start", newStartISO);
         params.set("end", newEndISO);
+        // Préserve le bookingId pour que la résa initiated ne soit pas
+        // orphanée quand l'utilisateur change les dates à l'étape 2.
+        const bookingId = searchParams.get("bookingId");
+        if (bookingId) params.set("bookingId", bookingId);
 
         router.replace(`?${params.toString()}`, { scroll: false });
       }

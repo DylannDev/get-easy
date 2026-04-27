@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
+import { getLastSeenTimestamp } from "@/hooks/use-last-seen-bookings";
+import { getNewBookingsCount } from "@/actions/admin/new-bookings-count";
 import Link from "next/link";
 import {
-  PiSquaresFour,
   PiCalendarCheck,
   PiCalendarBlank,
   PiUsers,
@@ -30,6 +31,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import {
   Popover,
@@ -39,7 +41,6 @@ import {
 import { signOut } from "@/actions/admin/auth";
 
 const mainNav = [
-  { label: "Tableau de bord", href: "/admin", icon: PiSquaresFour },
   { label: "Réservations", href: "/admin/reservations", icon: PiCalendarCheck },
   { label: "Planning", href: "/admin/planning", icon: PiCalendarBlank },
 ];
@@ -86,13 +87,24 @@ export function AppSidebar({
   onAgencyChange,
 }: AppSidebarProps) {
   const pathname = usePathname();
+  const { isMobile, setOpenMobile } = useSidebar();
 
-  const isActive = (href: string) => {
-    if (href === "/admin") return pathname === "/admin";
-    return pathname.startsWith(href);
+  // Sur mobile, ferme le drawer dès qu'on clique un lien (sinon il reste ouvert
+  // et masque le contenu après navigation).
+  const handleNavClick = () => {
+    if (isMobile) setOpenMobile(false);
   };
 
+  const isActive = (href: string) => pathname.startsWith(href);
+
+  const [newBookingsCount, setNewBookingsCount] = useState(0);
   const [popoverOpen, setPopoverOpen] = useState(false);
+
+  // Charge le nombre de nouvelles résas au mount et quand le pathname change.
+  useEffect(() => {
+    const lastSeen = getLastSeenTimestamp();
+    getNewBookingsCount(lastSeen).then(setNewBookingsCount);
+  }, [pathname]);
   const currentAgency = agencies.find((a) => a.id === currentAgencyId) ?? agencies[0];
   const showAgencySwitcher = agencies.length > 1;
 
@@ -100,23 +112,34 @@ export function AppSidebar({
     items: { label: string; href: string; icon: React.ComponentType<{ className?: string }> }[]
   ) => (
     <SidebarMenu>
-      {items.map((item) => (
-        <SidebarMenuItem key={item.href}>
-          <SidebarMenuButton asChild isActive={isActive(item.href)}>
-            <Link href={item.href}>
-              <item.icon className="size-4" />
-              <span>{item.label}</span>
-            </Link>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-      ))}
+      {items.map((item) => {
+        const badge =
+          item.href === "/admin/reservations" && newBookingsCount > 0
+            ? newBookingsCount
+            : 0;
+        return (
+          <SidebarMenuItem key={item.href}>
+            <SidebarMenuButton asChild isActive={isActive(item.href)}>
+              <Link href={item.href} onClick={handleNavClick}>
+                <item.icon className="size-4" />
+                <span className="flex-1">{item.label}</span>
+                {badge > 0 && (
+                  <span className="ml-auto inline-flex items-center justify-center size-5 rounded-full bg-green text-black text-[10px] font-bold">
+                    {badge}
+                  </span>
+                )}
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        );
+      })}
     </SidebarMenu>
   );
 
   return (
     <Sidebar>
       <SidebarHeader className="p-4">
-        <Link href="/admin" className="py-8">
+        <Link href="/admin" className="py-8" onClick={handleNavClick}>
           <img src="/logo-white.svg" alt="Get Easy" className="h-8 w-auto" />
         </Link>
 
@@ -140,6 +163,7 @@ export function AppSidebar({
                   key={agency.id}
                   onClick={() => {
                     setPopoverOpen(false);
+                    if (isMobile) setOpenMobile(false);
                     onAgencyChange?.(agency.id);
                   }}
                   className="flex items-center gap-2 w-full px-2 py-1.5 text-sm rounded-md hover:bg-green/50 cursor-pointer"

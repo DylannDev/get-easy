@@ -16,6 +16,18 @@ export function getCountriesList() {
     .sort((a, b) => a.label.localeCompare(b.label));
 }
 
+/** Liste des pays avec la France et ses DOM en tête (FR, GF, MQ, GP),
+ *  format `{ value, label }`. Utilisée par tous les formulaires client. */
+export function getCountriesListWithPriority() {
+  const all = getCountriesList();
+  const priority = ["FR", "GF", "MQ", "GP"];
+  const top = priority
+    .map((code) => all.find((c) => c.value === code))
+    .filter((x): x is { value: string; label: string } => !!x);
+  const rest = all.filter((c) => !priority.includes(c.value));
+  return [...top, ...rest];
+}
+
 // Vérifier si un code pays est valide
 export function isValidCountryCode(code: string): boolean {
   return countries.isValid(code);

@@ -14,7 +14,7 @@ export default async function OptionsPage() {
       <AdminHeader>
         <span className="text-sm text-muted-foreground">Options</span>
       </AdminHeader>
-      <div className="flex-1 space-y-6 p-6 overflow-y-auto">
+      <div className="flex-1 space-y-6 p-4 sm:p-6 overflow-y-auto">
         <PageHeader
           title="Options"
           description={`${options.length} option${options.length > 1 ? "s" : ""}`}

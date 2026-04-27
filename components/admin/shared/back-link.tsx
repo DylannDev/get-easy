@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { PiArrowLeft } from "react-icons/pi";
+import { Button } from "@/components/ui/button";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 interface BackLinkProps {
@@ -24,12 +25,9 @@ export function BackLink({ href, label }: BackLinkProps) {
   }
 
   return (
-    <button
-      onClick={handleClick}
-      className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-    >
+    <Button type="button" variant="default" size="xs" onClick={handleClick}>
       <PiArrowLeft className="size-4" />
       {label}
-    </button>
+    </Button>
   );
 }

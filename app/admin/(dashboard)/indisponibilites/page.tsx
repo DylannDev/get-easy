@@ -17,7 +17,7 @@ export default async function IndisponibilitesPage() {
       <AdminHeader>
         <span className="text-sm text-muted-foreground">Indisponibilités</span>
       </AdminHeader>
-      <div className="flex-1 space-y-6 p-6 overflow-y-auto">
+      <div className="flex-1 space-y-6 p-4 sm:p-6 overflow-y-auto">
         <PageHeader
           title="Indisponibilités"
           description={`${periods.length} période${periods.length > 1 ? "s" : ""} bloquée${periods.length > 1 ? "s" : ""}`}

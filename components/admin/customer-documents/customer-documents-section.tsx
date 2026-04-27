@@ -14,14 +14,16 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { ContentOverlay } from "@/components/admin/shared/content-overlay";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   PiEye,
   PiDownload,
   PiTrash,
   PiFilePdf,
   PiImage,
+  PiPlus,
 } from "react-icons/pi";
+import { ImportCustomerDocumentsDialog } from "./import-customer-documents-dialog";
 import { formatDateCayenne } from "@/lib/format-date";
 import {
   type CustomerDocument,
@@ -52,11 +54,12 @@ function formatSize(bytes: number): string {
 export function CustomerDocumentsSection({
   documents,
   context,
-  title = "Pièces jointes du client",
+  title = "Pièces justificatives du client",
 }: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
 
   const handleView = async (id: string) => {
     setLoading(true);
@@ -93,12 +96,24 @@ export function CustomerDocumentsSection({
       {loading && <ContentOverlay />}
 
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-col gap-3 space-y-0 sm:flex-row sm:items-center sm:justify-between">
           <CardTitle className="text-base">{title}</CardTitle>
+          {(context.bookingId || context.customerId) && (
+            <Button
+              type="button"
+              variant="default"
+              size="sm"
+              className="w-full sm:w-auto"
+              onClick={() => setImportOpen(true)}
+            >
+              <PiPlus className="size-4" />
+              Importer des pièces
+            </Button>
+          )}
         </CardHeader>
         <CardContent className="p-0">
           {documents.length === 0 ? (
-            <p className="text-sm text-muted-foreground px-6 pb-6">
+            <p className="text-sm text-muted-foreground px-4 sm:px-6 pb-4 sm:pb-6">
               Aucune pièce jointe pour ce client.
             </p>
           ) : (
@@ -108,9 +123,9 @@ export function CustomerDocumentsSection({
                 return (
                   <li
                     key={doc.id}
-                    className="flex items-center justify-between gap-3 px-6 py-3"
+                    className="flex items-center justify-between gap-3 px-4 sm:px-6 py-3"
                   >
-                    <div className="flex items-center gap-3 min-w-0">
+                    <div className="flex flex-1 items-center gap-3 min-w-0">
                       {isPdf ? (
                         <PiFilePdf className="size-5 text-red-500 shrink-0" />
                       ) : (
@@ -157,10 +172,7 @@ export function CustomerDocumentsSection({
         </CardContent>
       </Card>
 
-      <AlertDialog
-        open={!!deleteId}
-        onOpenChange={() => setDeleteId(null)}
-      >
+      <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Supprimer ce document ?</AlertDialogTitle>
@@ -181,6 +193,20 @@ export function CustomerDocumentsSection({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {context.bookingId ? (
+        <ImportCustomerDocumentsDialog
+          open={importOpen}
+          onOpenChange={setImportOpen}
+          bookingId={context.bookingId}
+        />
+      ) : context.customerId ? (
+        <ImportCustomerDocumentsDialog
+          open={importOpen}
+          onOpenChange={setImportOpen}
+          customerId={context.customerId}
+        />
+      ) : null}
     </>
   );
 }

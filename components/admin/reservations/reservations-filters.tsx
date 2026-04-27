@@ -13,7 +13,6 @@ import {
 const STATUS_OPTIONS = [
   { value: "paid", label: "Confirmée" },
   { value: "pending_payment", label: "En attente" },
-  { value: "initiated", label: "Initiée" },
   { value: "payment_failed", label: "Échec paiement" },
   { value: "refunded", label: "Remboursée" },
   { value: "cancelled", label: "Annulée" },
@@ -73,8 +72,8 @@ export function ReservationsFilters() {
   const hasFilters = search || selectedStatuses.length > 0;
 
   return (
-    <div className="flex items-center gap-3">
-      <div className="relative max-w-sm flex-1">
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+      <div className="relative w-full sm:max-w-sm sm:flex-1">
         <PiMagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
         <Input
           value={search}
@@ -92,7 +91,7 @@ export function ReservationsFilters() {
         )}
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-wrap">
         <Popover>
           <PopoverTrigger asChild>
             <button className="h-10 rounded-md border border-gray-300 px-3 text-sm flex items-center gap-2 cursor-pointer hover:border-gray-400 transition-colors">

@@ -16,7 +16,7 @@ export default async function ParametresPage() {
       <AdminHeader>
         <span className="text-sm text-muted-foreground">Infos agence</span>
       </AdminHeader>
-      <div className="flex-1 min-h-0 flex flex-col space-y-6 p-6">
+      <div className="flex-1 min-h-0 flex flex-col space-y-6 p-4 sm:p-6">
         <PageHeader
           title="Infos agence"
           description="Gérez les informations de vos agences"

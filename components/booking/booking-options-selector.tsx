@@ -21,16 +21,10 @@ export const BookingOptionsSelector = ({
 }: Props) => {
   if (options.length === 0) return null;
 
-  const formatPrice = (o: Option) => {
-    const base =
-      o.priceType === "per_day"
-        ? `${formatMoney(o.price)} / jour`
-        : `${formatMoney(o.price)} forfait`;
-    if (o.priceType === "per_day" && o.capEnabled && o.monthlyCap != null) {
-      return `${base} · plafonné à ${formatMoney(o.monthlyCap)}/mois`;
-    }
-    return base;
-  };
+  const formatBasePrice = (o: Option) =>
+    o.priceType === "per_day"
+      ? `${formatMoney(o.price)} / jour`
+      : `${formatMoney(o.price)} forfait`;
 
   const lineTotal = (o: Option, qty: number) => {
     if (qty <= 0) return 0;
@@ -65,14 +59,21 @@ export const BookingOptionsSelector = ({
                       {option.description}
                     </p>
                   )}
-                  <p className="text-xs text-gray-600 mt-1">
-                    {formatPrice(option)}
+                  <div className="text-xs text-gray-600 mt-1 space-y-0.5">
+                    <p>{formatBasePrice(option)}</p>
+                    {option.priceType === "per_day" &&
+                      option.capEnabled &&
+                      option.monthlyCap != null && (
+                        <p>
+                          Plafonné à {formatMoney(option.monthlyCap)} / mois
+                        </p>
+                      )}
                     {qty > 0 && numberOfDays > 0 && (
-                      <span className="ml-2 font-semibold text-black">
-                        · {formatMoney(total)}
-                      </span>
+                      <p className="font-semibold text-black">
+                        Total : {formatMoney(total)}
+                      </p>
                     )}
-                  </p>
+                  </div>
                 </div>
 
                 <QuantityStepper

@@ -16,7 +16,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { PiPlus, PiTrash, PiX } from "react-icons/pi";
+import { PiPlus, PiX } from "react-icons/pi";
+import { DeleteButton } from "@/components/ui/delete-button";
 import { deleteMultipleVehicles } from "@/actions/admin/vehicles";
 import type { Vehicle } from "@/domain/vehicle";
 
@@ -72,17 +73,18 @@ export function VehiclesPageContent({ vehicles }: Props) {
   };
 
   return (
-    <div className="flex-1 space-y-6 p-6">
+    <div className="flex-1 space-y-6 p-4 sm:p-6 overflow-y-auto">
       {loading && <ContentOverlay />}
       <PageHeader
         title="Véhicules"
         description={`${vehicles.length} véhicule${vehicles.length > 1 ? "s" : ""}`}
         action={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             {!selectMode && (
               <Button
                 variant="default"
                 size="sm"
+                className="w-full sm:w-auto"
                 onClick={() => {
                   setLoading(true);
                   router.push("/admin/vehicules/nouveau");
@@ -97,26 +99,24 @@ export function VehiclesPageContent({ vehicles }: Props) {
                 variant="default"
                 size="sm"
                 onClick={cancelSelectMode}
-                className="bg-transparent text-black border-2 border-black hover:bg-gray-100"
+                className="w-full sm:w-auto bg-transparent text-black border-2 border-black hover:bg-gray-100"
               >
                 <PiX className="size-4" />
                 Annuler
               </Button>
             )}
-            <Button
-              variant="red"
-              size="sm"
+            <DeleteButton
               onClick={handleDeleteClick}
-              className={
+              className={`w-full sm:w-auto ${
                 selectMode && selectedIds.size > 0 ? "" : selectMode ? "opacity-50" : ""
-              }
+              }`}
               disabled={selectMode && selectedIds.size === 0}
-            >
-              <PiTrash className="size-4" />
-              {selectMode && selectedIds.size > 0
-                ? `Confirmer la suppression (${selectedIds.size})`
-                : "Supprimer"}
-            </Button>
+              label={
+                selectMode && selectedIds.size > 0
+                  ? `Confirmer la suppression (${selectedIds.size})`
+                  : "Supprimer"
+              }
+            />
           </div>
         }
       />

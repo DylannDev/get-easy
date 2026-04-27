@@ -111,7 +111,7 @@ export default async function EditContractPage({ params }: Props) {
           label="Détail de la réservation"
         />
       </AdminHeader>
-      <div className="flex-1 space-y-6 p-6 overflow-y-auto">
+      <div className="flex-1 space-y-6 p-4 sm:p-6 overflow-y-auto">
         <PageHeader
           title="Éditer le contrat de location"
           description="Les champs sont pré-remplis depuis la réservation. Modifiez-les si nécessaire avant d'enregistrer et de générer le PDF."

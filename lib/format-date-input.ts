@@ -102,3 +102,23 @@ export function handleDateInputChange(
     input.setSelectionRange(newCursorPosition, newCursorPosition);
   }, 0);
 }
+
+/**
+ * Convertit une date BDD ("YYYY-MM-DD") au format français ("JJ/MM/AAAA").
+ * Renvoie "" si la valeur est null/undefined, ou la valeur d'origine si le
+ * pattern ne match pas.
+ */
+export function dbDateToFr(value: string | undefined | null): string {
+  if (!value) return "";
+  const m = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : value;
+}
+
+/**
+ * Convertit une date française ("JJ/MM/AAAA") au format BDD ("YYYY-MM-DD").
+ * Renvoie la valeur d'origine si le pattern ne match pas.
+ */
+export function frDateToISO(value: string): string {
+  const m = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : value;
+}

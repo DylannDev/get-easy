@@ -32,8 +32,13 @@ export function GenerateInvoiceButton({ bookingId, hasInvoice }: Props) {
   return (
     <>
       {loading && <ContentOverlay />}
-      <div className="flex items-center gap-3">
-        <Button size="sm" onClick={handleClick} disabled={loading}>
+      <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-3">
+        <Button
+          size="sm"
+          className="w-full md:w-auto"
+          onClick={handleClick}
+          disabled={loading}
+        >
           <PiReceipt className="size-4" />
           {hasInvoice ? "Régénérer la facture" : "Générer la facture"}
         </Button>

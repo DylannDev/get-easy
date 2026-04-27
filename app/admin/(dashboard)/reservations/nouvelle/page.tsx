@@ -1,4 +1,5 @@
 import { AdminHeader } from "@/components/admin/admin-header";
+import { PageHeader } from "@/components/admin/page-header";
 import { BackLink } from "@/components/admin/shared/back-link";
 import { NewBookingWizard } from "@/components/admin/reservations/new-booking-wizard";
 import { getContainer } from "@/composition-root/container";
@@ -23,10 +24,18 @@ export default async function NewBookingPage() {
     email: c.email,
     phone: c.phone,
     birthDate: c.birthDate,
+    birthPlace: c.birthPlace,
     address: c.address,
+    address2: c.address2,
     postalCode: c.postalCode,
     city: c.city,
     country: c.country,
+    driverLicenseNumber: c.driverLicenseNumber,
+    driverLicenseIssuedAt: c.driverLicenseIssuedAt,
+    driverLicenseCountry: c.driverLicenseCountry,
+    companyName: c.companyName,
+    siret: c.siret,
+    vatNumber: c.vatNumber,
   }));
 
   // Charge les options (actives) pour chaque agence en une passe
@@ -52,7 +61,11 @@ export default async function NewBookingPage() {
       <AdminHeader>
         <BackLink href="/admin/reservations" label="Réservations" />
       </AdminHeader>
-      <div className="flex-1 space-y-6 p-6 overflow-y-auto">
+      <div className="flex-1 space-y-6 p-4 sm:p-6 overflow-y-auto">
+        <PageHeader
+          title="Nouvelle réservation"
+          description="Sélectionnez un véhicule, des options et un client pour créer une réservation."
+        />
         <NewBookingWizard
           vehicles={vehicles}
           agencies={agencies}

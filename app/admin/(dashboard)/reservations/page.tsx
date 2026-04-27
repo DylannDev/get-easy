@@ -22,9 +22,19 @@ export default async function ReservationsPage({ searchParams }: Props) {
   const params = await searchParams;
   const page = Number(params.page) || 1;
   const search = params.search || undefined;
+  // Par défaut on exclut les bookings "initiated" (état transitoire
+  // interne, pas pertinent pour l'admin). L'admin peut les voir en
+  // filtrant explicitement sur le statut "Initiée".
   const statuses = params.status
     ? (params.status.split(",") as BookingStatus[])
-    : undefined;
+    : ([
+        "paid",
+        "pending_payment",
+        "payment_failed",
+        "refunded",
+        "cancelled",
+        "expired",
+      ] as BookingStatus[]);
   const startDate = params.startDate || undefined;
   const endDate = params.endDate || undefined;
 
@@ -48,7 +58,7 @@ export default async function ReservationsPage({ searchParams }: Props) {
       <AdminHeader>
         <span className="text-sm text-muted-foreground">Réservations</span>
       </AdminHeader>
-      <div className="flex-1 space-y-6 p-6 overflow-y-auto">
+      <div className="flex-1 space-y-6 p-4 sm:p-6 overflow-y-auto">
         <PageHeader
           title="Réservations"
           description={`${count} réservation${count > 1 ? "s" : ""} au total`}

@@ -1,29 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { fr } from "date-fns/locale";
-import Image from "next/image";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { frDateToISO } from "@/lib/format-date-input";
+import { getCountriesListWithPriority } from "@/lib/countries";
+import { stagedDocsToPayload } from "@/components/booking/customer-documents-upload";
 import { ContentOverlay } from "@/components/admin/shared/content-overlay";
-import {
-  PiCalendarBlank,
-  PiCaretRight,
-  PiCaretLeft,
-  PiMinus,
-  PiPlus,
-} from "react-icons/pi";
-import { formatDateCayenne } from "@/lib/format-date";
+import { generateTimeSlots } from "@/lib/utils";
 import { quotePrice, isVehicleAvailable } from "@/domain/vehicle";
-import { computeOptionsTotal, computeOptionLineTotal } from "@/domain/option";
+import { computeOptionsTotal } from "@/domain/option";
 import type { BookingAvailabilityView } from "@/domain/vehicle";
 import {
   createManualBooking,
@@ -31,27 +15,40 @@ import {
 } from "@/actions/admin/manual-booking";
 import { createQuote } from "@/actions/admin/quote";
 import { getDocumentInlineUrl } from "@/actions/admin/documents";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import type { Vehicle } from "@/domain/vehicle";
 import type { Agency } from "@/domain/agency";
 import type { Option } from "@/domain/option";
 import type { Customer } from "@/domain/customer";
+import { WizardSteps } from "./wizard/wizard-steps";
+import { StepDatesVehicle } from "./wizard/step-dates-vehicle";
+import { StepOptions } from "./wizard/step-options";
+import { StepCustomer } from "./wizard/step-customer";
+import { StepRecap } from "./wizard/step-recap";
+import { useWizardCustomerForm } from "./wizard/use-wizard-customer-form";
 
 /** Forme minimale d'un client existant, pour la sélection dans le wizard. */
-export interface CustomerPickerOption
-  extends Pick<
-    Customer,
-    | "id"
-    | "firstName"
-    | "lastName"
-    | "email"
-    | "phone"
-    | "birthDate"
-    | "address"
-    | "postalCode"
-    | "city"
-    | "country"
-  > {}
+export type CustomerPickerOption = Pick<
+  Customer,
+  | "id"
+  | "firstName"
+  | "lastName"
+  | "email"
+  | "phone"
+  | "birthDate"
+  | "birthPlace"
+  | "address"
+  | "address2"
+  | "postalCode"
+  | "city"
+  | "country"
+  | "driverLicenseNumber"
+  | "driverLicenseIssuedAt"
+  | "driverLicenseCountry"
+  | "companyName"
+  | "siret"
+  | "vatNumber"
+>;
 
 /** Mode d'utilisation du wizard — réservation payée, ou simple devis PDF. */
 export type WizardMode = "booking" | "quote";
@@ -68,10 +65,18 @@ export interface InitialBookingData {
     email: string;
     phone: string;
     birthDate: string;
+    birthPlace?: string | null;
     address: string;
+    address2?: string | null;
     postalCode: string;
     city: string;
     country: string;
+    driverLicenseNumber?: string | null;
+    driverLicenseIssuedAt?: string | null;
+    driverLicenseCountry?: string | null;
+    companyName?: string | null;
+    siret?: string | null;
+    vatNumber?: string | null;
   };
   selectedOptions: Record<string, number>;
 }
@@ -126,6 +131,10 @@ export function NewBookingWizard({
   mode = "booking",
 }: Props) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  // `?from=documents` quand le wizard a été ouvert depuis /admin/documents :
+  // on retourne sur cet écran (onglet Devis) après génération.
+  const fromDocuments = searchParams.get("from") === "documents";
   const isEdit = !!initialBooking;
   const isQuote = mode === "quote";
   const [step, setStep] = useState<Step>(1);
@@ -134,44 +143,89 @@ export function NewBookingWizard({
 
   // Step 1
   const [startDate, setStartDate] = useState<Date | undefined>(
-    initialBooking?.startDate
+    initialBooking?.startDate,
   );
   const [endDate, setEndDate] = useState<Date | undefined>(
-    initialBooking?.endDate
+    initialBooking?.endDate,
   );
   const [selectedVehicleId, setSelectedVehicleId] = useState(
-    initialBooking?.vehicleId ?? ""
+    initialBooking?.vehicleId ?? "",
   );
   const [agencyId, setAgencyId] = useState(
-    initialBooking?.agencyId ?? agencies[0]?.id ?? ""
+    initialBooking?.agencyId ?? agencies[0]?.id ?? "",
   );
 
-  // Step 2 — Client
-  const [customer, setCustomer] = useState(
-    initialBooking?.customer ?? {
-      firstName: "",
-      lastName: "",
-      email: "",
-      phone: "",
-      birthDate: "",
-      address: "",
-      postalCode: "",
-      city: "",
-      country: "France",
-    }
+  // Heures de départ et retour — extraites du Date initial si en mode édition.
+  const [startTime, setStartTime] = useState(
+    initialBooking?.startDate
+      ? `${String(initialBooking.startDate.getHours()).padStart(2, "0")}:${String(initialBooking.startDate.getMinutes()).padStart(2, "0")}`
+      : "",
   );
+  const [endTime, setEndTime] = useState(
+    initialBooking?.endDate
+      ? `${String(initialBooking.endDate.getHours()).padStart(2, "0")}:${String(initialBooking.endDate.getMinutes()).padStart(2, "0")}`
+      : "",
+  );
+
+  // Step 2 — Client. Mêmes champs que sur le formulaire public
+  // (cf. components/booking/booking-form.tsx) pour cohérence des données
+  // saisies et des erreurs affichées.
+  const {
+    customer,
+    setCustomer,
+    isBusiness,
+    setIsBusiness,
+    businessFields,
+    setBusinessFields,
+    errors: customerErrors,
+    stagedDocs,
+    setStagedDocs,
+    requiredFieldsFilled,
+    validate: validateCustomerStep,
+  } = useWizardCustomerForm(initialBooking?.customer, { mode });
+
+  /** Liste des pays priorisés (DOM-TOM + France) en tête, comme sur le site
+   *  public (cf. components/booking/booking-form.tsx). */
+  const countryOptions = useMemo(() => getCountriesListWithPriority(), []);
 
   const selectedVehicle = vehicles.find((v) => v.id === selectedVehicleId);
 
+  // Créneaux horaires de l'agence sélectionnée.
+  const selectedAgency = agencies.find((a) => a.id === agencyId);
+  const timeSlots = useMemo(() => {
+    if (!selectedAgency?.hours) return [];
+    return generateTimeSlots(selectedAgency.hours);
+  }, [selectedAgency]);
+
+  /** Applique un créneau "HH:MM" sur un Date (conserve le jour). */
+  const applyTime = (
+    date: Date | undefined,
+    time: string,
+  ): Date | undefined => {
+    if (!date || !time) return date;
+    const [h, m] = time.split(":").map(Number);
+    const d = new Date(date);
+    d.setHours(h, m, 0, 0);
+    return d;
+  };
+
+  // Dates avec heures appliquées — utilisées pour le calcul du prix
+  // et envoyées au serveur.
+  const startDateWithTime = applyTime(startDate, startTime);
+  const endDateWithTime = applyTime(endDate, endTime);
+
   // Options disponibles pour l'agence courante
-  const agencyOptions = optionsByAgency[agencyId] ?? [];
+  const agencyOptions = useMemo(
+    () => optionsByAgency[agencyId] ?? [],
+    [optionsByAgency, agencyId],
+  );
 
   // Filtrage des véhicules par dispo sur les dates sélectionnées
   // (même règle que le site public). Tant que les deux dates ne sont
   // pas posées, on affiche toutes les voitures de l'agence.
   const vehiclesForAgency = useMemo(
     () => vehicles.filter((v) => v.agencyId === agencyId),
-    [vehicles, agencyId]
+    [vehicles, agencyId],
   );
   const availableVehicles = useMemo(() => {
     if (!startDate || !endDate) return vehiclesForAgency;
@@ -214,9 +268,9 @@ export function NewBookingWizard({
   }
 
   // Quantités sélectionnées par option
-  const [selectedOptions, setSelectedOptions] = useState<Record<string, number>>(
-    initialBooking?.selectedOptions ?? {}
-  );
+  const [selectedOptions, setSelectedOptions] = useState<
+    Record<string, number>
+  >(initialBooking?.selectedOptions ?? {});
 
   const handleOptionChange = (optionId: string, quantity: number) => {
     setSelectedOptions((prev) => {
@@ -227,19 +281,33 @@ export function NewBookingWizard({
     });
   };
 
-  // Calculate price
-  let vehiclePrice = 0;
-  let totalDays = 0;
-  if (startDate && endDate && selectedVehicle) {
-    const result = quotePrice(
-      startDate,
-      endDate,
+  // Prix/jour personnalisé — null = tarif automatique (paliers dégressifs).
+  // Permet à la gérante d'appliquer un prix négocié.
+  const [customPricePerDay, setCustomPricePerDay] = useState<number | null>(
+    null,
+  );
+
+  // Calculate price — tout mémoïsé pour que React Compiler puisse
+  // optimiser (pas de `let` mutable utilisé comme dépendance de memo).
+  const priceQuoteResult = useMemo(() => {
+    if (!startDateWithTime || !endDateWithTime || !selectedVehicle) {
+      return { totalPrice: 0, totalDays: 0 };
+    }
+    return quotePrice(
+      startDateWithTime,
+      endDateWithTime,
       selectedVehicle.pricingTiers,
-      selectedVehicle.pricePerDay
+      selectedVehicle.pricePerDay,
     );
-    vehiclePrice = result.totalPrice;
-    totalDays = result.totalDays;
-  }
+  }, [startDateWithTime, endDateWithTime, selectedVehicle]);
+
+  const totalDays = priceQuoteResult.totalDays;
+  const autoPricePerDay =
+    totalDays > 0 ? priceQuoteResult.totalPrice / totalDays : 0;
+  const vehiclePrice =
+    customPricePerDay !== null
+      ? customPricePerDay * totalDays
+      : priceQuoteResult.totalPrice;
 
   const optionsTotal = useMemo(() => {
     const lines = agencyOptions
@@ -264,22 +332,36 @@ export function NewBookingWizard({
   const canGoStep2 =
     !!startDate && !!endDate && !!selectedVehicleId && datesOrderValid;
   const canGoStep3 = canGoStep2;
-  const canGoStep4 =
-    customer.firstName &&
-    customer.lastName &&
-    customer.email &&
-    customer.phone &&
-    customer.birthDate &&
-    customer.address &&
-    customer.postalCode &&
-    customer.city;
+  const canGoStep4 = requiredFieldsFilled;
 
   const selectedOptionsPayload = Object.entries(selectedOptions)
     .filter(([, qty]) => qty > 0)
     .map(([optionId, quantity]) => ({ optionId, quantity }));
 
+  /** Customer enrichi des champs pro si la case est cochée + dates au
+   *  format BDD. */
+  const customerPayload = {
+    ...customer,
+    birthDate: frDateToISO(customer.birthDate),
+    driverLicenseIssuedAt: customer.driverLicenseIssuedAt
+      ? frDateToISO(customer.driverLicenseIssuedAt)
+      : null,
+    driverLicenseNumber: customer.driverLicenseNumber || null,
+    driverLicenseCountry: customer.driverLicenseCountry || null,
+    birthPlace: customer.birthPlace || null,
+    address2: customer.address2 || null,
+    companyName: isBusiness ? businessFields.companyName.trim() || null : null,
+    siret: isBusiness ? businessFields.siret.replace(/\s/g, "") || null : null,
+    vatNumber: isBusiness
+      ? businessFields.vatNumber.replace(/\s/g, "").toUpperCase() || null
+      : null,
+  };
+
+  /** Payload des pièces jointes en staging (mêmes infos que le site public). */
+  const stagedDocumentsPayload = stagedDocsToPayload(stagedDocs);
+
   const handleSubmit = async () => {
-    if (!startDate || !endDate || !selectedVehicleId) return;
+    if (!startDateWithTime || !endDateWithTime || !selectedVehicleId) return;
     setSaving(true);
     setErrorMessage(null);
 
@@ -322,15 +404,18 @@ export function NewBookingWizard({
       const result = await createQuote({
         vehicleId: selectedVehicleId,
         agencyId,
-        startDate: startDate.toISOString(),
-        endDate: endDate.toISOString(),
+        startDate: startDateWithTime.toISOString(),
+        endDate: endDateWithTime.toISOString(),
         totalPrice,
-        customer,
+        customer: customerPayload,
         selectedOptions: selectedOptionsPayload,
+        stagedDocuments: stagedDocumentsPayload,
       });
       if (!result.ok || !result.documentId) {
         previewTab?.close();
-        setErrorMessage(result.error ?? "Erreur lors de la génération du devis.");
+        setErrorMessage(
+          result.error ?? "Erreur lors de la génération du devis.",
+        );
         setSaving(false);
         return;
       }
@@ -338,16 +423,22 @@ export function NewBookingWizard({
       if (previewTab && inlineUrl) {
         previewTab.location.href = inlineUrl;
       } else if (inlineUrl) {
-        // Popup bloqué malgré le geste utilisateur (extensions anti-pub
-        // agressives) — on ouvre alors la preview dans l'onglet courant,
-        // le router.push qui suit est simplement ignoré.
-        window.location.href = inlineUrl;
-        return;
+        // Popup bloqué malgré le geste utilisateur — on navigue vers
+        // le devis via un lien programmatique (moins restrictif).
+        const a = document.createElement("a");
+        a.href = inlineUrl;
+        a.target = "_blank";
+        a.rel = "noopener";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
       }
       // Rend la main : on coupe le loader *avant* de naviguer, sinon le
       // temps de chargement de la page réservations maintient l'overlay.
       setSaving(false);
-      router.push("/admin/reservations");
+      router.push(
+        fromDocuments ? "/admin/documents?tab=quote" : "/admin/reservations",
+      );
       router.refresh();
       return;
     }
@@ -356,11 +447,12 @@ export function NewBookingWizard({
       const result = await updateManualBooking({
         bookingId: initialBooking.bookingId,
         vehicleId: selectedVehicleId,
-        startDate: startDate.toISOString(),
-        endDate: endDate.toISOString(),
+        startDate: startDateWithTime.toISOString(),
+        endDate: endDateWithTime.toISOString(),
         totalPrice,
-        customer,
+        customer: customerPayload,
         selectedOptions: selectedOptionsPayload,
+        stagedDocuments: stagedDocumentsPayload,
       });
       if (!result.ok) {
         setErrorMessage(result.error ?? "Erreur lors de la mise à jour.");
@@ -374,537 +466,114 @@ export function NewBookingWizard({
       await createManualBooking({
         vehicleId: selectedVehicleId,
         agencyId,
-        startDate: startDate.toISOString(),
-        endDate: endDate.toISOString(),
+        startDate: startDateWithTime.toISOString(),
+        endDate: endDateWithTime.toISOString(),
         totalPrice,
-        customer,
+        customer: customerPayload,
         selectedOptions: selectedOptionsPayload,
+        stagedDocuments: stagedDocumentsPayload,
       });
     }
-  };
-
-  const handleCustomerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setCustomer((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       {saving && <ContentOverlay />}
 
-      {/* Step indicator */}
-      <div className="flex items-center justify-center gap-2">
-        {STEPS.map((s, i) => (
-          <div key={s.num} className="flex items-center gap-2">
-            <div
-              className={`size-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                step >= s.num
-                  ? "bg-black text-green"
-                  : "bg-gray-100 text-gray-400"
-              }`}
-            >
-              {s.num}
-            </div>
-            <span
-              className={`text-sm hidden sm:block ${
-                step >= s.num ? "text-foreground font-medium" : "text-muted-foreground"
-              }`}
-            >
-              {s.label}
-            </span>
-            {i < STEPS.length - 1 && (
-              <div className="w-8 h-px bg-gray-300 mx-1" />
-            )}
-          </div>
-        ))}
-      </div>
+      <WizardSteps steps={STEPS} current={step} />
 
-      {/* Step 1: Dates + Véhicule */}
       {step === 1 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Dates et véhicule</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {agencies.length > 1 && (
-              <Field label={isEdit ? "Agence (non modifiable)" : "Agence"}>
-                <select
-                  value={agencyId}
-                  onChange={(e) => setAgencyId(e.target.value)}
-                  disabled={isEdit}
-                  className="h-10 w-full rounded-md border border-gray-300 px-3 text-sm disabled:bg-gray-50 disabled:text-muted-foreground"
-                >
-                  {agencies.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.name}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-            )}
-
-            <div className="grid grid-cols-2 gap-4">
-              <Field label="Date de départ">
-                <DatePickerButton
-                  value={startDate}
-                  onChange={(d) => {
-                    setStartDate(d);
-                    // Si la date de retour est avant la nouvelle date de départ, on la réinitialise
-                    if (d && endDate && endDate.getTime() < d.getTime()) {
-                      setEndDate(undefined);
-                    }
-                  }}
-                  placeholder="Sélectionner"
-                />
-              </Field>
-              <Field label="Date de retour">
-                <DatePickerButton
-                  value={endDate}
-                  onChange={setEndDate}
-                  placeholder="Sélectionner"
-                  disabledBefore={startDate}
-                />
-              </Field>
-            </div>
-
-            {startDate && endDate && !datesOrderValid && (
-              <p className="text-xs text-red-500">
-                La date de retour doit être postérieure ou égale à la date de départ.
-              </p>
-            )}
-
-            <Field label="Véhicule">
-              {startDate && endDate && availableVehicles.length === 0 ? (
-                <p className="text-sm text-muted-foreground bg-gray-50 rounded-lg p-3">
-                  Aucun véhicule disponible sur ces dates. Modifiez la
-                  période ou ajustez un blocage.
-                </p>
-              ) : (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {availableVehicles.map((v) => (
-                    <button
-                      key={v.id}
-                      type="button"
-                      onClick={() => setSelectedVehicleId(v.id)}
-                      className={`flex items-center gap-3 p-3 rounded-lg border-2 text-left cursor-pointer transition-all ${
-                        selectedVehicleId === v.id
-                          ? "border-green bg-green/5"
-                          : "border-gray-200 hover:border-gray-300"
-                      }`}
-                    >
-                      <div
-                        className="shrink-0 rounded overflow-hidden"
-                        style={{ width: 50, height: 35 }}
-                      >
-                        <Image
-                          src={v.img}
-                          alt={`${v.brand} ${v.model}`}
-                          width={50}
-                          height={35}
-                          className="object-cover w-full h-full"
-                        />
-                      </div>
-                      <div className="min-w-0">
-                        <div className="text-sm font-medium">
-                          {v.brand} {v.model}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {v.registrationPlate} · {v.pricePerDay}€/j
-                        </div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </Field>
-
-            {totalPrice > 0 && (
-              <div className="bg-gray-50 rounded-lg p-3 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">{totalDays} jour{totalDays > 1 ? "s" : ""}</span>
-                  <span className="font-semibold">{Math.round(totalPrice)} €</span>
-                </div>
-              </div>
-            )}
-
-            <div className="flex justify-end">
-              <Button
-                type="button"
-                size="sm"
-                disabled={!canGoStep2}
-                onClick={() => setStep(2)}
-              >
-                Suivant
-                <PiCaretRight className="size-4" />
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Step 2: Options */}
-      {step === 2 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Options additionnelles</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {agencyOptions.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                Aucune option configurée pour cette agence.
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {agencyOptions.map((option) => {
-                  const qty = selectedOptions[option.id] ?? 0;
-                  const line = computeOptionLineTotal(
-                    {
-                      unitPrice: option.price,
-                      priceType: option.priceType,
-                      quantity: qty,
-                      monthlyCap: option.capEnabled ? option.monthlyCap : null,
-                    },
-                    totalDays
-                  );
-                  return (
-                    <div
-                      key={option.id}
-                      className="flex items-start justify-between gap-4 py-3 border-b last:border-0"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-semibold">{option.name}</div>
-                        {option.description && (
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            {option.description}
-                          </p>
-                        )}
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {option.price.toFixed(2)} €{" "}
-                          {option.priceType === "per_day" ? "/ jour" : "forfait"}
-                          {qty > 0 && totalDays > 0 && (
-                            <span className="ml-2 font-semibold text-foreground">
-                              · {line.toFixed(2)} €
-                            </span>
-                          )}
-                        </p>
-                      </div>
-                      <QtyStepper
-                        value={qty}
-                        min={0}
-                        max={option.maxQuantity}
-                        onChange={(v) => handleOptionChange(option.id, v)}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            <div className="bg-gray-50 rounded-lg p-3 text-sm space-y-1">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Véhicule ({totalDays} j)</span>
-                <span className="font-semibold">{Math.round(vehiclePrice)} €</span>
-              </div>
-              {optionsTotal > 0 && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Options</span>
-                  <span className="font-semibold">{optionsTotal.toFixed(2)} €</span>
-                </div>
-              )}
-              <div className="flex justify-between pt-1 border-t">
-                <span className="font-semibold">Total</span>
-                <span className="font-bold">{Math.round(totalPrice)} €</span>
-              </div>
-            </div>
-
-            <div className="flex justify-between">
-              <Button type="button" variant="outline" size="sm" onClick={() => setStep(1)}>
-                <PiCaretLeft className="size-4" />
-                Précédent
-              </Button>
-              <Button type="button" size="sm" disabled={!canGoStep3} onClick={() => setStep(3)}>
-                Suivant
-                <PiCaretRight className="size-4" />
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Step 3: Client */}
-      {step === 3 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Informations client</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {existingCustomers && existingCustomers.length > 0 && !isEdit && (
-              <Field label="Client existant (optionnel)">
-                <select
-                  value=""
-                  onChange={(e) => {
-                    const id = e.target.value;
-                    if (!id) return;
-                    const c = existingCustomers.find((x) => x.id === id);
-                    if (!c) return;
-                    // Auto-remplissage de tous les champs à partir du client
-                    // choisi. L'utilisateur peut ensuite ajuster avant de
-                    // valider — le backend fera un upsert par email.
-                    setCustomer({
-                      firstName: c.firstName,
-                      lastName: c.lastName,
-                      email: c.email,
-                      phone: c.phone,
-                      birthDate: c.birthDate,
-                      address: c.address,
-                      postalCode: c.postalCode,
-                      city: c.city,
-                      country: c.country,
-                    });
-                  }}
-                  className="h-10 w-full rounded-md border border-gray-300 px-3 text-sm cursor-pointer"
-                >
-                  <option value="">
-                    — Sélectionner pour pré-remplir —
-                  </option>
-                  {existingCustomers.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.firstName} {c.lastName} · {c.email}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-            )}
-            <div className="grid grid-cols-2 gap-4">
-              <Field label="Prénom">
-                <Input name="firstName" value={customer.firstName} onChange={handleCustomerChange} placeholder="Jean" required />
-              </Field>
-              <Field label="Nom">
-                <Input name="lastName" value={customer.lastName} onChange={handleCustomerChange} placeholder="Dupont" required />
-              </Field>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <Field label="Email">
-                <Input name="email" type="email" value={customer.email} onChange={handleCustomerChange} placeholder="jean@exemple.com" required />
-              </Field>
-              <Field label="Téléphone">
-                <Input name="phone" value={customer.phone} onChange={handleCustomerChange} placeholder="+594 6 94 00 00 00" required />
-              </Field>
-            </div>
-            <Field label="Date de naissance">
-              <Input name="birthDate" type="date" value={customer.birthDate} onChange={handleCustomerChange} required />
-            </Field>
-            <Field label="Adresse">
-              <Input name="address" value={customer.address} onChange={handleCustomerChange} placeholder="123 rue de la Paix" required />
-            </Field>
-            <div className="grid grid-cols-3 gap-4">
-              <Field label="Code postal">
-                <Input name="postalCode" value={customer.postalCode} onChange={handleCustomerChange} placeholder="97300" required />
-              </Field>
-              <Field label="Ville">
-                <Input name="city" value={customer.city} onChange={handleCustomerChange} placeholder="Cayenne" required />
-              </Field>
-              <Field label="Pays">
-                <Input name="country" value={customer.country} onChange={handleCustomerChange} placeholder="France" required />
-              </Field>
-            </div>
-
-            <div className="flex justify-between">
-              <Button type="button" variant="outline" size="sm" onClick={() => setStep(2)}>
-                <PiCaretLeft className="size-4" />
-                Précédent
-              </Button>
-              <Button type="button" size="sm" disabled={!canGoStep4} onClick={() => setStep(4)}>
-                Suivant
-                <PiCaretRight className="size-4" />
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Step 4: Récapitulatif */}
-      {step === 4 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Récapitulatif</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-3 text-sm">
-              <h4 className="font-semibold text-muted-foreground text-xs uppercase tracking-wide">Réservation</h4>
-              <Row label="Véhicule" value={selectedVehicle ? `${selectedVehicle.brand} ${selectedVehicle.model}` : ""} />
-              <Row label="Plaque" value={selectedVehicle?.registrationPlate ?? ""} />
-              {startDate && <Row label="Départ" value={formatDateCayenne(startDate.toISOString(), "dd MMMM yyyy")} />}
-              {endDate && <Row label="Retour" value={formatDateCayenne(endDate.toISOString(), "dd MMMM yyyy")} />}
-              <Row label="Durée" value={`${totalDays} jour${totalDays > 1 ? "s" : ""}`} />
-              <Row label="Véhicule" value={`${Math.round(vehiclePrice)} €`} />
-              {optionsTotal > 0 && (
-                <Row label="Options" value={`${optionsTotal.toFixed(2)} €`} />
-              )}
-              <Row label="Total" value={`${Math.round(totalPrice)} €`} bold />
-            </div>
-
-            {selectedOptionsPayload.length > 0 && (
-              <div className="border-t pt-3 space-y-3 text-sm">
-                <h4 className="font-semibold text-muted-foreground text-xs uppercase tracking-wide">Options sélectionnées</h4>
-                {selectedOptionsPayload.map((sel) => {
-                  const opt = agencyOptions.find((o) => o.id === sel.optionId);
-                  if (!opt) return null;
-                  return (
-                    <Row
-                      key={sel.optionId}
-                      label={`${opt.name}${sel.quantity > 1 ? ` ×${sel.quantity}` : ""}`}
-                      value={`${computeOptionLineTotal(
-                        {
-                          unitPrice: opt.price,
-                          priceType: opt.priceType,
-                          quantity: sel.quantity,
-                          monthlyCap: opt.capEnabled ? opt.monthlyCap : null,
-                        },
-                        totalDays
-                      ).toFixed(2)} €`}
-                    />
-                  );
-                })}
-              </div>
-            )}
-
-            <div className="border-t pt-3 space-y-3 text-sm">
-              <h4 className="font-semibold text-muted-foreground text-xs uppercase tracking-wide">Client</h4>
-              <Row label="Nom" value={`${customer.firstName} ${customer.lastName}`} />
-              <Row label="Email" value={customer.email} />
-              <Row label="Téléphone" value={customer.phone} />
-              <Row label="Adresse" value={`${customer.address}, ${customer.postalCode} ${customer.city}`} />
-            </div>
-
-            {errorMessage && (
-              <p className="text-xs text-red-500 pt-2">{errorMessage}</p>
-            )}
-
-            <div className="flex justify-between pt-2">
-              <Button type="button" variant="outline" size="sm" onClick={() => setStep(3)}>
-                <PiCaretLeft className="size-4" />
-                Précédent
-              </Button>
-              <Button type="button" size="sm" disabled={saving} onClick={handleSubmit}>
-                {saving
-                  ? isQuote
-                    ? "Génération…"
-                    : isEdit
-                      ? "Enregistrement…"
-                      : "Création..."
-                  : isQuote
-                    ? "Générer le devis"
-                    : isEdit
-                      ? "Enregistrer les modifications"
-                      : "Confirmer la réservation"}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-    </div>
-  );
-}
-
-function DatePickerButton({
-  value,
-  onChange,
-  placeholder,
-  disabledBefore,
-}: {
-  value?: Date;
-  onChange: (date: Date | undefined) => void;
-  placeholder: string;
-  disabledBefore?: Date;
-}) {
-  const [open, setOpen] = useState(false);
-  const minDate = disabledBefore
-    ? new Date(
-        disabledBefore.getFullYear(),
-        disabledBefore.getMonth(),
-        disabledBefore.getDate()
-      )
-    : undefined;
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          className="h-10 w-full rounded-md border border-gray-300 px-3 text-sm flex items-center gap-2 cursor-pointer hover:border-gray-400 transition-colors text-left"
-        >
-          <PiCalendarBlank className="size-4 text-muted-foreground shrink-0" />
-          <span className={value ? "text-foreground" : "text-muted-foreground"}>
-            {value ? formatDateCayenne(value.toISOString(), "dd MMM yyyy") : placeholder}
-          </span>
-        </button>
-      </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start">
-        <Calendar
-          mode="single"
-          selected={value}
-          disabled={minDate ? { before: minDate } : undefined}
-          onSelect={(date) => {
-            onChange(date);
-            setOpen(false);
-          }}
-          locale={fr}
-          initialFocus
+        <StepDatesVehicle
+          agencies={agencies}
+          agencyId={agencyId}
+          setAgencyId={setAgencyId}
+          isEdit={isEdit}
+          startDate={startDate}
+          setStartDate={setStartDate}
+          endDate={endDate}
+          setEndDate={setEndDate}
+          startTime={startTime}
+          setStartTime={setStartTime}
+          endTime={endTime}
+          setEndTime={setEndTime}
+          timeSlots={timeSlots}
+          datesOrderValid={datesOrderValid}
+          availableVehicles={availableVehicles}
+          selectedVehicleId={selectedVehicleId}
+          setSelectedVehicleId={setSelectedVehicleId}
+          selectedVehicle={selectedVehicle}
+          totalDays={totalDays}
+          totalPrice={totalPrice}
+          autoPricePerDay={autoPricePerDay}
+          customPricePerDay={customPricePerDay}
+          setCustomPricePerDay={setCustomPricePerDay}
+          canGoNext={canGoStep2}
+          onNext={() => setStep(2)}
         />
-      </PopoverContent>
-    </Popover>
-  );
-}
+      )}
 
-function Row({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
-  return (
-    <div className="flex justify-between">
-      <span className="text-muted-foreground">{label}</span>
-      <span className={bold ? "font-bold text-lg" : "font-medium"}>{value}</span>
+      {step === 2 && (
+        <StepOptions
+          agencyOptions={agencyOptions}
+          selectedOptions={selectedOptions}
+          onOptionQtyChange={handleOptionChange}
+          totalDays={totalDays}
+          vehiclePrice={vehiclePrice}
+          optionsTotal={optionsTotal}
+          totalPrice={totalPrice}
+          canGoNext={canGoStep3}
+          onPrev={() => setStep(1)}
+          onNext={() => setStep(3)}
+        />
+      )}
+
+      {step === 3 && (
+        <StepCustomer
+          existingCustomers={existingCustomers}
+          isEdit={isEdit}
+          isQuote={isQuote}
+          customer={customer}
+          setCustomer={setCustomer}
+          isBusiness={isBusiness}
+          setIsBusiness={setIsBusiness}
+          businessFields={businessFields}
+          setBusinessFields={setBusinessFields}
+          customerErrors={customerErrors}
+          countryOptions={countryOptions}
+          stagedDocs={stagedDocs}
+          setStagedDocs={setStagedDocs}
+          canGoNext={!!canGoStep4}
+          onPrev={() => setStep(2)}
+          onNext={() => {
+            if (validateCustomerStep()) setStep(4);
+          }}
+        />
+      )}
+
+      {step === 4 && (
+        <StepRecap
+          selectedVehicle={selectedVehicle}
+          startDateWithTime={startDateWithTime}
+          endDateWithTime={endDateWithTime}
+          totalDays={totalDays}
+          vehiclePrice={vehiclePrice}
+          optionsTotal={optionsTotal}
+          totalPrice={totalPrice}
+          selectedOptionsPayload={selectedOptionsPayload}
+          agencyOptions={agencyOptions}
+          isBusiness={isBusiness}
+          businessFields={businessFields}
+          customer={customer}
+          errorMessage={errorMessage}
+          saving={saving}
+          isEdit={isEdit}
+          isQuote={isQuote}
+          onPrev={() => setStep(3)}
+          onSubmit={handleSubmit}
+        />
+      )}
     </div>
   );
 }
 
-function QtyStepper({
-  value,
-  min,
-  max,
-  onChange,
-}: {
-  value: number;
-  min: number;
-  max: number;
-  onChange: (v: number) => void;
-}) {
-  return (
-    <div className="flex items-center gap-2 shrink-0">
-      <button
-        type="button"
-        onClick={() => onChange(Math.max(min, value - 1))}
-        disabled={value <= min}
-        className="size-8 rounded-md border border-gray-300 flex items-center justify-center hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-      >
-        <PiMinus className="size-3.5" />
-      </button>
-      <span className="w-6 text-center text-sm font-semibold tabular-nums">
-        {value}
-      </span>
-      <button
-        type="button"
-        onClick={() => onChange(Math.min(max, value + 1))}
-        disabled={value >= max}
-        className="size-8 rounded-md border border-gray-300 flex items-center justify-center hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-      >
-        <PiPlus className="size-3.5" />
-      </button>
-    </div>
-  );
-}
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="space-y-1.5">
-      <Label className="text-xs text-muted-foreground">{label}</Label>
-      {children}
-    </div>
-  );
-}

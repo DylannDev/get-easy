@@ -77,10 +77,18 @@ export default async function EditBookingPage({ params }: Props) {
       email: customer.email,
       phone: customer.phone,
       birthDate: customer.birthDate,
+      birthPlace: customer.birthPlace,
       address: customer.address,
+      address2: customer.address2,
       postalCode: customer.postalCode,
       city: customer.city,
       country: customer.country,
+      driverLicenseNumber: customer.driverLicenseNumber,
+      driverLicenseIssuedAt: customer.driverLicenseIssuedAt,
+      driverLicenseCountry: customer.driverLicenseCountry,
+      companyName: customer.companyName,
+      siret: customer.siret,
+      vatNumber: customer.vatNumber,
     },
     selectedOptions,
   };
@@ -93,7 +101,7 @@ export default async function EditBookingPage({ params }: Props) {
           label="Détail de la réservation"
         />
       </AdminHeader>
-      <div className="flex-1 space-y-6 p-6 overflow-y-auto">
+      <div className="flex-1 space-y-6 p-4 sm:p-6 overflow-y-auto">
         <NewBookingWizard
           vehicles={vehicles}
           agencies={agencies}

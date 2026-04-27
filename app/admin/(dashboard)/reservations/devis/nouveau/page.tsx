@@ -8,8 +8,22 @@ import { getContainer } from "@/composition-root/container";
  * Génération d'un devis — réutilise le wizard à 4 étapes en mode "quote".
  * Le wizard produit un PDF téléchargeable et une ligne dans `documents`
  * (type "quote") au lieu de créer une réservation.
+ *
+ * `?from=documents` est respecté côté wizard (post-génération) et côté
+ * BackLink (retour utilisateur).
  */
-export default async function NewQuotePage() {
+interface PageProps {
+  searchParams: Promise<{ from?: string }>;
+}
+
+export default async function NewQuotePage({ searchParams }: PageProps) {
+  const { from } = await searchParams;
+  const fromDocuments = from === "documents";
+  const backHref = fromDocuments
+    ? "/admin/documents?tab=quote"
+    : "/admin/reservations";
+  const backLabel = fromDocuments ? "Documents" : "Réservations";
+
   const {
     vehicleRepository,
     agencyRepository,
@@ -29,10 +43,18 @@ export default async function NewQuotePage() {
     email: c.email,
     phone: c.phone,
     birthDate: c.birthDate,
+    birthPlace: c.birthPlace,
     address: c.address,
+    address2: c.address2,
     postalCode: c.postalCode,
     city: c.city,
     country: c.country,
+    driverLicenseNumber: c.driverLicenseNumber,
+    driverLicenseIssuedAt: c.driverLicenseIssuedAt,
+    driverLicenseCountry: c.driverLicenseCountry,
+    companyName: c.companyName,
+    siret: c.siret,
+    vatNumber: c.vatNumber,
   }));
 
   const optionsByAgency: Record<
@@ -54,9 +76,9 @@ export default async function NewQuotePage() {
   return (
     <>
       <AdminHeader>
-        <BackLink href="/admin/reservations" label="Réservations" />
+        <BackLink href={backHref} label={backLabel} />
       </AdminHeader>
-      <div className="flex-1 space-y-6 p-6 overflow-y-auto">
+      <div className="flex-1 space-y-6 p-4 sm:p-6 overflow-y-auto">
         <PageHeader
           title="Générer un devis"
           description="Sélectionnez un véhicule, des options et un client. Un PDF daté et numéroté sera téléchargeable à la fin."

@@ -20,8 +20,16 @@ export function GenerateContractButton({
   isSigned,
 }: Props) {
   return (
-    <Link href={`/admin/reservations/${bookingId}/contrat`}>
-      <Button type="button" variant="outline" size="sm">
+    <Link
+      href={`/admin/reservations/${bookingId}/contrat`}
+      className="w-full md:w-auto"
+    >
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="w-full md:w-auto"
+      >
         <PiFileText className="size-4" />
         {isSigned
           ? "Éditer le contrat signé"

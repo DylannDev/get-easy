@@ -28,7 +28,7 @@ export function VehicleFormPage({
       <AdminHeader>
         <BackLink href="/admin/vehicules" label="Véhicules" />
       </AdminHeader>
-      <div className="flex-1 space-y-6 p-6">
+      <div className="flex-1 space-y-6 p-4 sm:p-6 overflow-y-auto">
         {loading && <ContentOverlay />}
         <PageHeader title={title} />
         <VehicleForm

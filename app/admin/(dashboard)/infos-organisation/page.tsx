@@ -17,7 +17,7 @@ export default async function InfosOrganisationPage() {
       <AdminHeader>
         <span className="text-sm text-muted-foreground">Infos organisation</span>
       </AdminHeader>
-      <div className="flex-1 space-y-6 p-6 overflow-y-auto">
+      <div className="flex-1 space-y-6 p-4 sm:p-6 overflow-y-auto">
         <PageHeader
           title="Infos organisation"
           description="Informations légales et logos partagés entre toutes les agences"

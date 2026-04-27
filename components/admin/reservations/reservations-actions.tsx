@@ -26,10 +26,11 @@ export function ReservationsActions() {
   return (
     <>
       {pending && <ContentOverlay />}
-      <div className="flex items-center gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
         <Button
           variant="outline"
           size="sm"
+          className="w-full sm:w-auto"
           disabled={pending}
           onClick={() => go("/admin/reservations/devis/nouveau")}
         >
@@ -39,6 +40,7 @@ export function ReservationsActions() {
         <Button
           variant="default"
           size="sm"
+          className="w-full sm:w-auto"
           disabled={pending}
           onClick={() => go("/admin/reservations/nouvelle")}
         >

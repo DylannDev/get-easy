@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { NativeSelect } from "@/components/ui/native-select";
 import { uploadDocument } from "@/actions/admin/documents";
 import { PiFileText } from "react-icons/pi";
 import type { DocumentType } from "@/domain/document";
@@ -70,7 +71,7 @@ export function UploadDocumentDialog({
         }
       }}
     >
-      <DialogContent className="max-w-md">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Importer un document</DialogTitle>
         </DialogHeader>
@@ -78,15 +79,15 @@ export function UploadDocumentDialog({
         <div className="space-y-4">
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">Type</Label>
-            <select
+            <NativeSelect
               value={type}
-              onChange={(e) => setType(e.target.value as DocumentType)}
-              className="h-10 w-full rounded-md border border-gray-300 px-3 text-sm"
-            >
-              <option value="invoice">Facture</option>
-              <option value="contract">Contrat</option>
-              <option value="other">Autre</option>
-            </select>
+              onValueChange={(val) => setType(val as DocumentType)}
+              options={[
+                { value: "invoice", label: "Facture" },
+                { value: "contract", label: "Contrat" },
+                { value: "other", label: "Autre" },
+              ]}
+            />
           </div>
 
           <div className="space-y-1.5">

@@ -16,6 +16,9 @@ import { Button } from "@/components/ui/button";
 import { PiPencilSimple } from "react-icons/pi";
 import { InspectionSection } from "@/components/admin/inspection/inspection-section";
 import type { InspectionType } from "@/domain/inspection";
+import { SendDocumentsButton } from "@/components/admin/reservations/send-documents-button";
+import type { DocumentOption } from "@/components/admin/reservations/send-documents-dialog";
+import { BookingStatusChangeButton } from "@/components/admin/reservations/booking-status-change-button";
 
 interface Props {
   params: Promise<{ bookingId: string }>;
@@ -69,26 +72,71 @@ export default async function BookingDetailPage({ params }: Props) {
   const departureData = inspectionData.find((d) => d.type === "departure")!;
   const returnData = inspectionData.find((d) => d.type === "return")!;
 
+  // Construit la liste des docs envoyables par email (facture, contrat,
+  // EDL départ, EDL retour). Les EDL sont distingués via `inspectionReportId`.
+  const sendableDocs: DocumentOption[] = [];
+  const invoice = documents.find((d) => d.type === "invoice");
+  if (invoice) sendableDocs.push({ id: invoice.id, label: "Facture" });
+  const contract = documents.find((d) => d.type === "contract");
+  if (contract) sendableDocs.push({ id: contract.id, label: "Contrat" });
+  const departureDoc = documents.find(
+    (d) =>
+      d.type === "inspection" &&
+      d.inspectionReportId === departureData.report?.id
+  );
+  if (departureDoc)
+    sendableDocs.push({
+      id: departureDoc.id,
+      label: "État des lieux de départ",
+    });
+  const returnDoc = documents.find(
+    (d) =>
+      d.type === "inspection" && d.inspectionReportId === returnData.report?.id
+  );
+  if (returnDoc)
+    sendableDocs.push({
+      id: returnDoc.id,
+      label: "État des lieux de retour",
+    });
+
   return (
     <>
       <AdminHeader>
         <BackLink href="/admin/reservations" label="Réservations" />
       </AdminHeader>
-      <div className="flex-1 space-y-6 p-6 overflow-y-auto">
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <div className="flex items-center gap-3">
+      <div className="flex-1 space-y-6 p-4 sm:p-6 overflow-y-auto">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3 flex-wrap">
             <PageHeader title="Détail de la réservation" />
             <BookingStatusBadge status={booking.status} />
           </div>
-          {(booking.status === BookingStatus.Paid ||
-            booking.status === BookingStatus.PendingPayment) && (
-            <Link href={`/admin/reservations/${booking.id}/editer`}>
-              <Button type="button" variant="outline" size="sm">
-                <PiPencilSimple className="size-4" />
-                Modifier la réservation
-              </Button>
-            </Link>
-          )}
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:flex-wrap">
+            {booking.status === BookingStatus.Paid && customer && (
+              <SendDocumentsButton
+                bookingId={booking.id}
+                defaultEmail={customer.email}
+                options={sendableDocs}
+              />
+            )}
+            <BookingStatusChangeButton
+              bookingId={booking.id}
+              currentStatus={booking.status}
+            />
+            {(booking.status === BookingStatus.Paid ||
+              booking.status === BookingStatus.PendingPayment) && (
+              <Link href={`/admin/reservations/${booking.id}/editer`}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full sm:w-auto"
+                >
+                  <PiPencilSimple className="size-4" />
+                  Modifier la réservation
+                </Button>
+              </Link>
+            )}
+          </div>
         </div>
 
         <div className="grid gap-6 md:grid-cols-2">
@@ -126,8 +174,19 @@ export default async function BookingDetailPage({ params }: Props) {
             <CardContent className="space-y-3 text-sm">
               {customer ? (
                 <>
+                  {customer.companyName && (
+                    <>
+                      <Row label="Entreprise" value={customer.companyName} />
+                      {customer.siret && (
+                        <Row label="SIRET" value={customer.siret} />
+                      )}
+                      {customer.vatNumber && (
+                        <Row label="N° TVA" value={customer.vatNumber} />
+                      )}
+                    </>
+                  )}
                   <Row
-                    label="Nom"
+                    label={customer.companyName ? "Conducteur" : "Nom"}
                     value={`${customer.firstName} ${customer.lastName}`}
                     capitalize
                   />
@@ -174,13 +233,12 @@ export default async function BookingDetailPage({ params }: Props) {
           </Card>
         </div>
 
-        {/* Pièces jointes client (upload public facultatif) */}
-        {customerDocuments.length > 0 && (
-          <CustomerDocumentsSection
-            documents={customerDocuments}
-            context={{ bookingId: booking.id }}
-          />
-        )}
+        {/* Pièces jointes client (upload public facultatif).
+            Toujours rendu : si vide, l'admin voit le bouton "+ Importer". */}
+        <CustomerDocumentsSection
+          documents={customerDocuments}
+          context={{ bookingId: booking.id }}
+        />
 
         {/* Documents liés à la réservation */}
         <DocumentsContent
@@ -233,10 +291,10 @@ function Row({
   capitalize?: boolean;
 }) {
   return (
-    <div className="flex justify-between">
-      <span className="text-muted-foreground">{label}</span>
+    <div className="flex flex-col gap-0.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+      <span className="text-muted-foreground shrink-0">{label}</span>
       <span
-        className={`font-medium ${mono ? "font-mono text-xs" : ""} ${capitalize ? "capitalize" : ""}`}
+        className={`break-words sm:text-right font-medium ${mono ? "font-mono text-xs" : ""} ${capitalize ? "capitalize" : ""}`}
       >
         {value}
       </span>
