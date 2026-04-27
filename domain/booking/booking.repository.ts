@@ -77,6 +77,19 @@ export interface BookingRepository {
     options?: { expectedStatuses?: BookingStatus[] }
   ): Promise<Booking | null>;
 
+  /**
+   * Hard-delete d'une réservation. Les tables liées en cascade (options,
+   * payments, inspection_reports, contract_fields) sont nettoyées par la
+   * BDD. Les `documents` liés (PDFs en Storage) doivent être supprimés
+   * AVANT par l'appelant via `documentRepository.delete()` — sinon ils
+   * deviennent orphelins (la FK est ON DELETE SET NULL).
+   */
+  delete(bookingId: string): Promise<void>;
+
+  /** Liste les réservations d'un client (utilisé pour la suppression
+   *  d'un client : on doit nettoyer chaque résa via le use case dédié). */
+  findAllByCustomerId(customerId: string): Promise<Booking[]>;
+
   // ── Admin queries ─────────────────────────────────────────────
 
   /**

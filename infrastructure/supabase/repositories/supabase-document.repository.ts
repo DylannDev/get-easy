@@ -223,6 +223,18 @@ export const createSupabaseDocumentRepository = (): DocumentRepository => {
     return data.signedUrl;
   };
 
+  const downloadContent = async (id: string): Promise<Buffer | null> => {
+    const supabase = createAdminClient();
+    const existing = await findById(id);
+    if (!existing) return null;
+    const { data, error } = await supabase.storage
+      .from(BUCKET)
+      .download(existing.filePath);
+    if (error || !data) return null;
+    const arrayBuffer = await data.arrayBuffer();
+    return Buffer.from(arrayBuffer);
+  };
+
   return {
     listByAgency,
     listByBooking,
@@ -233,5 +245,6 @@ export const createSupabaseDocumentRepository = (): DocumentRepository => {
     replaceContent,
     delete: deleteDocument,
     getSignedUrl,
+    downloadContent,
   };
 };

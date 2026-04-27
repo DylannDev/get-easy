@@ -54,4 +54,9 @@ export interface DocumentRepository {
     id: string,
     options?: { expiresInSeconds?: number; forceDownload?: boolean }
   ): Promise<string | null>;
+  /**
+   * Télécharge le contenu binaire d'un document depuis Storage.
+   * Renvoie `null` si le document n'existe pas ou si le téléchargement échoue.
+   */
+  downloadContent(id: string): Promise<Buffer | null>;
 }

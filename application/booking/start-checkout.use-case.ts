@@ -1,67 +1,24 @@
-import { parse, format } from "date-fns";
+import { format } from "date-fns";
 import type { BookingRepository } from "@/domain/booking";
-import type {
-  CustomerRepository,
-  CreateCustomerInput,
-} from "@/domain/customer";
-import type {
-  PaymentGateway,
-  PaymentRepository,
-} from "@/domain/payment";
+import type { CustomerRepository } from "@/domain/customer";
+import type { PaymentGateway, PaymentRepository } from "@/domain/payment";
 import type { OptionRepository } from "@/domain/option";
 import { PaymentStatus } from "@/domain/payment";
-import { BookingStatus } from "@/domain/booking";
+import type {
+  StartCheckoutInput,
+  StartCheckoutOutput,
+} from "./start-checkout/types";
+import { upsertCustomer } from "./start-checkout/upsert-customer";
+import { upsertBooking } from "./start-checkout/upsert-booking";
+import { attachOptions } from "./start-checkout/attach-options";
 
-/**
- * Customer fields (camelCase) consumed by the use case.
- * Mirrors the shape produced by the booking form (Zod schema).
- */
-export interface CheckoutCustomerData {
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone: string;
-  birthDate: string; // "JJ/MM/AAAA"
-  birthPlace?: string | null;
-  address: string;
-  address2?: string | null;
-  postalCode: string;
-  city: string;
-  country: string;
-  driverLicenseNumber?: string | null;
-  driverLicenseIssuedAt?: string | null; // "JJ/MM/AAAA"
-  driverLicenseCountry?: string | null;
-}
-
-export interface SelectedOptionInput {
-  optionId: string;
-  quantity: number;
-}
-
-export interface StartCheckoutInput {
-  customerData: CheckoutCustomerData;
-  vehicleId: string;
-  vehicleBrand: string;
-  vehicleModel: string;
-  agencyId: string;
-  startDate: Date;
-  endDate: Date;
-  totalPrice: number;
-  /** Options selected by the customer. Empty if none. */
-  selectedOptions?: SelectedOptionInput[];
-  /** Booking id from the `initiated` step (optional). */
-  bookingId?: string;
-  /** Origin URL used to build success/cancel redirect URLs. */
-  origin: string;
-}
-
-export interface StartCheckoutOutput {
-  success: boolean;
-  customerId?: string;
-  bookingId?: string;
-  checkoutUrl?: string;
-  error?: string;
-}
+// Re-exports pour les callers externes (server actions, etc.).
+export type {
+  CheckoutCustomerData,
+  SelectedOptionInput,
+  StartCheckoutInput,
+  StartCheckoutOutput,
+} from "./start-checkout/types";
 
 interface StartCheckoutDeps {
   customerRepository: CustomerRepository;
@@ -71,187 +28,58 @@ interface StartCheckoutDeps {
   optionRepository: OptionRepository;
 }
 
-const PENDING_PAYMENT_TTL_MS = 10 * 60 * 1000;
-
-/**
- * Converts a French date "JJ/MM/AAAA" into the SQL "YYYY-MM-DD" format.
- * Returns null when the input is empty/invalid.
- */
-const frenchDateToISODate = (
-  value: string | undefined | null
-): string | null => {
-  if (!value) return null;
-  try {
-    const parsed = parse(value, "dd/MM/yyyy", new Date());
-    return format(parsed, "yyyy-MM-dd");
-  } catch {
-    return null;
-  }
-};
-
-const toCreateCustomerInput = (
-  data: CheckoutCustomerData
-): CreateCustomerInput => ({
-  firstName: data.firstName,
-  lastName: data.lastName,
-  email: data.email,
-  phone: data.phone,
-  birthDate: frenchDateToISODate(data.birthDate) ?? "",
-  birthPlace: data.birthPlace ?? null,
-  address: data.address,
-  address2: data.address2 ?? null,
-  postalCode: data.postalCode,
-  city: data.city,
-  country: data.country,
-  driverLicenseNumber: data.driverLicenseNumber ?? null,
-  driverLicenseIssuedAt: frenchDateToISODate(data.driverLicenseIssuedAt),
-  driverLicenseCountry: data.driverLicenseCountry ?? null,
-});
-
 /**
  * Orchestrates the move from `initiated` to `pending_payment`:
- *  1. Find or create the customer
- *  2. Create or update the booking (with the 10-minute expiry)
- *  3. Drop stale `created`-status payments for that booking
- *  4. Create a fresh payment record
- *  5. Create a Stripe Checkout session via the PaymentGateway port
- *  6. Persist the session id on the payment row
+ *  1. Find or create the customer (B2B fields applied if checked)
+ *  2. Create or update the booking (with the 10-minute expiry + status guards)
+ *  3. Attach selected options with price snapshots
+ *  4. Drop stale `created`-status payments for that booking
+ *  5. Create a fresh payment record
+ *  6. Create a Stripe Checkout session via the PaymentGateway port
+ *  7. Persist the session id on the payment row
  *
  * Replaces the old `actions/create-booking.ts` (~308 lines, mixing Supabase
  * calls, Stripe SDK calls, business rules, and security guards).
  */
 export const createStartCheckoutUseCase = (deps: StartCheckoutDeps) => {
   const execute = async (
-    input: StartCheckoutInput
+    input: StartCheckoutInput,
   ): Promise<StartCheckoutOutput> => {
     try {
-      // 1. Customer
-      let customer = await deps.customerRepository.findByEmail(
-        input.customerData.email
+      const customerResult = await upsertCustomer(
+        deps.customerRepository,
+        input.customerData,
       );
-      if (!customer) {
-        try {
-          customer = await deps.customerRepository.create(
-            toCreateCustomerInput(input.customerData)
-          );
-        } catch (e) {
-          return {
-            success: false,
-            error: `Impossible de créer le client: ${
-              e instanceof Error ? e.message : "Erreur inconnue"
-            }`,
-          };
-        }
+      if (!customerResult.ok) {
+        return { success: false, error: customerResult.error };
+      }
+      const customer = customerResult.customer;
+
+      const bookingResult = await upsertBooking({
+        bookingRepository: deps.bookingRepository,
+        input,
+        customerId: customer.id,
+      });
+      if (!bookingResult.ok) {
+        return { success: false, error: bookingResult.error };
+      }
+      const booking = bookingResult.booking;
+
+      const optionsResult = await attachOptions({
+        optionRepository: deps.optionRepository,
+        bookingId: booking.id,
+        agencyId: input.agencyId,
+        selectedOptions: input.selectedOptions ?? [],
+      });
+      if (!optionsResult.ok) {
+        return { success: false, error: optionsResult.error };
       }
 
-      // 2. Booking
-      const expiresAt = new Date(
-        Date.now() + PENDING_PAYMENT_TTL_MS
-      ).toISOString();
-      const startISO = input.startDate.toISOString();
-      const endISO = input.endDate.toISOString();
-
-      let booking;
-
-      if (input.bookingId) {
-        // Guard: existing booking must still be modifiable.
-        const existing = await deps.bookingRepository.findById(input.bookingId);
-        if (!existing) {
-          return {
-            success: false,
-            error: "Réservation introuvable. Veuillez réessayer.",
-          };
-        }
-        if (existing.status === BookingStatus.Paid) {
-          return {
-            success: false,
-            error:
-              "Cette réservation a déjà été payée et ne peut plus être modifiée.",
-          };
-        }
-        if (
-          existing.status === BookingStatus.Cancelled ||
-          existing.status === BookingStatus.Expired
-        ) {
-          return {
-            success: false,
-            error:
-              "Cette réservation n'est plus valide. Veuillez créer une nouvelle réservation.",
-          };
-        }
-
-        booking = await deps.bookingRepository.update(
-          input.bookingId,
-          {
-            customerId: customer.id,
-            vehicleId: input.vehicleId,
-            agencyId: input.agencyId,
-            startDate: startISO,
-            endDate: endISO,
-            totalPrice: input.totalPrice,
-            status: BookingStatus.PendingPayment,
-            expiresAt,
-          },
-          {
-            expectedStatuses: [
-              BookingStatus.Initiated,
-              BookingStatus.PendingPayment,
-            ],
-          }
-        );
-
-        if (!booking) {
-          return {
-            success: false,
-            error: "Impossible de mettre à jour la réservation.",
-          };
-        }
-      } else {
-        booking = await deps.bookingRepository.create({
-          customerId: customer.id,
-          vehicleId: input.vehicleId,
-          agencyId: input.agencyId,
-          startDate: startISO,
-          endDate: endISO,
-          totalPrice: input.totalPrice,
-          status: BookingStatus.PendingPayment,
-          expiresAt,
-        });
-      }
-
-      // 3. Attach selected options (snapshot current price/name/type).
-      //    Always detach first to handle the re-checkout case cleanly.
-      await deps.optionRepository.detachAllFromBooking(booking.id);
-      const selectedOptions = input.selectedOptions ?? [];
-      for (const selected of selectedOptions) {
-        const option = await deps.optionRepository.findById(selected.optionId);
-        if (!option || !option.active || option.agencyId !== input.agencyId) {
-          return {
-            success: false,
-            error: "Une des options sélectionnées n'est plus disponible.",
-          };
-        }
-        const qty = Math.max(1, Math.min(option.maxQuantity, selected.quantity));
-        await deps.optionRepository.attachToBooking({
-          bookingId: booking.id,
-          optionId: option.id,
-          quantity: qty,
-          unitPriceSnapshot: option.price,
-          priceTypeSnapshot: option.priceType,
-          nameSnapshot: option.name,
-          monthlyCapSnapshot:
-            option.capEnabled && option.priceType === "per_day"
-              ? option.monthlyCap
-              : null,
-        });
-      }
-
-      // 4. Drop stale payments for this booking
+      // Nettoyage des paiements stale (cas re-checkout).
       if (input.bookingId) {
         await deps.paymentRepository.deleteCreatedByBookingId(booking.id);
       }
 
-      // 4. Create new payment row
       const payment = await deps.paymentRepository.create({
         bookingId: booking.id,
         amount: input.totalPrice,
@@ -260,7 +88,8 @@ export const createStartCheckoutUseCase = (deps: StartCheckoutDeps) => {
         provider: "stripe",
       });
 
-      // 5. Stripe Checkout session
+      const startISO = input.startDate.toISOString();
+      const endISO = input.endDate.toISOString();
       const session = await deps.paymentGateway.createCheckoutSession({
         bookingId: booking.id,
         paymentId: payment.id,
@@ -271,13 +100,12 @@ export const createStartCheckoutUseCase = (deps: StartCheckoutDeps) => {
         productName: `Location ${input.vehicleBrand} ${input.vehicleModel}`,
         productDescription: `Réservation du ${format(
           input.startDate,
-          "dd/MM/yyyy"
+          "dd/MM/yyyy",
         )} au ${format(input.endDate, "dd/MM/yyyy")}`,
         successUrl: `${input.origin}/booking/success?session_id={CHECKOUT_SESSION_ID}`,
         cancelUrl: `${input.origin}/booking/${input.vehicleId}?start=${startISO}&end=${endISO}&bookingId=${booking.id}`,
       });
 
-      // 6. Persist session id on payment
       await deps.paymentRepository.update(payment.id, {
         stripeCheckoutSessionId: session.id,
       });

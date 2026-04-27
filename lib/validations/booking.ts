@@ -112,6 +112,12 @@ export const bookingFormSchema = z
       ),
     driverLicenseCountry: z.string().optional(),
 
+    // Section pro (B2B) — visible uniquement si "Je suis un professionnel"
+    isBusiness: z.boolean().optional(),
+    companyName: z.string().optional(),
+    siret: z.string().optional(),
+    vatNumber: z.string().optional(),
+
     // Section 4 - Acceptation des conditions
     acceptTerms: z
       .boolean()
@@ -119,6 +125,31 @@ export const bookingFormSchema = z
         message: "Vous devez accepter les conditions générales de location",
       }),
   })
+  .refine(
+    (data) => !data.isBusiness || !!data.companyName?.trim(),
+    {
+      message: "Le nom de l'entreprise est requis",
+      path: ["companyName"],
+    }
+  )
+  .refine(
+    (data) => !data.isBusiness || !!data.siret?.trim(),
+    {
+      message: "Le numéro SIRET est requis",
+      path: ["siret"],
+    }
+  )
+  .refine(
+    (data) => {
+      if (!data.isBusiness || !data.siret?.trim()) return true;
+      // SIRET = 14 chiffres (espaces tolérés à la saisie)
+      return /^\d{14}$/.test(data.siret.replace(/\s/g, ""));
+    },
+    {
+      message: "Le SIRET doit comporter 14 chiffres",
+      path: ["siret"],
+    }
+  )
   .refine(
     (data) => {
       // Valider le code postal en fonction du pays sélectionné

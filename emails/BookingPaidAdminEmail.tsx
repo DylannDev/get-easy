@@ -26,6 +26,7 @@ interface BookingPaidAdminEmailProps {
     brand: string;
     model: string;
   };
+  options?: { name: string; quantity: number }[];
 }
 
 export const BookingPaidAdminEmail = ({
@@ -39,6 +40,7 @@ export const BookingPaidAdminEmail = ({
   endTime,
   totalPrice,
   vehicle,
+  options,
 }: BookingPaidAdminEmailProps) => {
   return (
     <Html>
@@ -142,6 +144,20 @@ export const BookingPaidAdminEmail = ({
                     {totalPrice.toFixed(2)} €
                   </Text>
                 </div>
+
+                {options && options.length > 0 && (
+                  <div>
+                    <Text className="text-sm text-gray-500 mb-1 font-medium">
+                      Options
+                    </Text>
+                    {options.map((opt, i) => (
+                      <Text key={i} className="text-base text-black">
+                        • {opt.name}
+                        {opt.quantity > 1 ? ` ×${opt.quantity}` : ""}
+                      </Text>
+                    ))}
+                  </div>
+                )}
               </div>
             </Section>
 

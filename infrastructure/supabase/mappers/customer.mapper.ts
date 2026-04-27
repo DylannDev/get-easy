@@ -20,6 +20,9 @@ export function toDomainCustomer(row: CustomerRow): Customer {
     driverLicenseNumber: row.driver_license_number,
     driverLicenseIssuedAt: row.driver_license_issued_at,
     driverLicenseCountry: row.driver_license_country,
+    companyName: row.company_name,
+    siret: row.siret,
+    vatNumber: row.vat_number,
     createdAt: row.created_at,
     userId: row.user_id,
   };

@@ -18,6 +18,10 @@ interface UpdateAgencyInput {
   interval: number;
   /** Durée de validité par défaut des devis (en jours, min 1). */
   quoteValidityDays: number;
+  rib: string;
+  showRibOnQuote: boolean;
+  smsEnabled: boolean;
+  smsAdminPhone: string;
 }
 
 export async function updateAgency(agencyId: string, input: UpdateAgencyInput) {
@@ -45,6 +49,10 @@ export async function updateAgency(agencyId: string, input: UpdateAgencyInput) {
       open_time: firstEnabledDay?.openTime ?? "07:00",
       close_time: firstEnabledDay?.closeTime ?? "22:00",
       quote_validity_days: Math.max(1, Math.round(input.quoteValidityDays)),
+      rib: input.rib || null,
+      show_rib_on_quote: input.showRibOnQuote,
+      sms_enabled: input.smsEnabled,
+      sms_admin_phone: input.smsAdminPhone || null,
     })
     .eq("id", agencyId);
 

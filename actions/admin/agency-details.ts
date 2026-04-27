@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createAdminClient } from "@/infrastructure/supabase/client";
 import { getContainer } from "@/composition-root/container";
+import { compressFile } from "@/lib/compression/compress-file";
 
 const LOGO_BUCKET = "organization-logos";
 const MAX_LOGO_SIZE = 2 * 1024 * 1024; // 2 MB
@@ -91,24 +92,31 @@ export async function uploadOrganizationLogo(
     throw new Error("Organisation introuvable pour cette agence.");
   }
 
-  // Stockage tel quel. Les formats vectoriels (SVG) ou modernes (WEBP) sont
-  // conservés car avantageux pour le web ; ils seront convertis en PNG à la
-  // volée lors de la génération des PDFs.
-  const buffer = Buffer.from(await file.arrayBuffer());
+  // SVG conservé tel quel (vectoriel, déjà léger). Les formats raster
+  // (PNG, JPG, WEBP) sont compressés via sharp (max 800px, qualité 85).
+  const rawBuffer = Buffer.from(await file.arrayBuffer());
+  const isSvg = file.type === "image/svg+xml";
+  const compressed = isSvg
+    ? null
+    : await compressFile(rawBuffer, file.type, {
+        image: { maxWidth: 800, maxHeight: 800, quality: 85 },
+      });
+  const finalBuffer = compressed?.buffer ?? rawBuffer;
+  const finalMime = compressed?.mimeType ?? "image/svg+xml";
   const extMap: Record<string, string> = {
     "image/png": "png",
     "image/jpeg": "jpg",
     "image/webp": "webp",
     "image/svg+xml": "svg",
   };
-  const ext = extMap[file.type] ?? "bin";
+  const ext = extMap[finalMime] ?? "bin";
   const path = `${agency.organizationId}/logo-${variant}-${Date.now()}.${ext}`;
 
   const supabase = createAdminClient();
   const { error: uploadError } = await supabase.storage
     .from(LOGO_BUCKET)
-    .upload(path, buffer, {
-      contentType: file.type,
+    .upload(path, finalBuffer as Buffer, {
+      contentType: finalMime,
       upsert: true,
     });
   if (uploadError) {

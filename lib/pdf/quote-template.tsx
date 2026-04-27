@@ -31,6 +31,8 @@ export interface QuoteDataAgency {
   tvaIntracom?: string | null;
   logoUrl?: string | null;
   vatEnabled: boolean;
+  rib?: string | null;
+  showRibOnQuote?: boolean;
 }
 
 export interface QuoteDataCustomer {
@@ -42,6 +44,11 @@ export interface QuoteDataCustomer {
   postalCode: string;
   city: string;
   country: string;
+  /** Champs pro (B2B). Si `companyName` rempli, le bloc "Client" affiche
+   *  l'entreprise comme entité principale. */
+  companyName?: string | null;
+  siret?: string | null;
+  vatNumber?: string | null;
 }
 
 export interface QuoteDataVehicle {
@@ -85,26 +92,17 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 24,
   },
-  headerLeft: { flex: 1, paddingRight: 16 },
-  headerRight: { flex: 1, alignItems: "flex-end" },
   logo: {
     width: 120,
     height: 40,
     objectFit: "contain",
-    marginBottom: 8,
   },
-  agencyName: {
-    fontSize: 13,
+  title: {
+    fontSize: 16,
     fontFamily: "Helvetica-Bold",
-    marginBottom: 4,
-  },
-  metaBlock: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    padding: 10,
-    minWidth: 220,
   },
   metaLine: {
     flexDirection: "row",
@@ -112,12 +110,6 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   metaLabel: { color: "#555" },
-  quoteTitle: {
-    fontSize: 16,
-    fontFamily: "Helvetica-Bold",
-    marginBottom: 6,
-    textAlign: "right",
-  },
   section: { marginBottom: 18 },
   sectionTitle: {
     fontFamily: "Helvetica-Bold",
@@ -126,11 +118,25 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     color: "#444",
   },
-  customerBlock: {
+  partyName: {
+    fontFamily: "Helvetica-Bold",
+    marginBottom: 2,
+  },
+  partyBlock: {
     borderWidth: 1,
     borderColor: "#eee",
     padding: 10,
     backgroundColor: "#fafafa",
+    borderRadius: 8,
+    flexDirection: "column",
+  },
+  detailsBlock: {
+    borderWidth: 1,
+    borderColor: "#eee",
+    padding: 10,
+    backgroundColor: "#fafafa",
+    borderRadius: 8,
+    flexDirection: "column",
   },
   tableHeader: {
     flexDirection: "row",
@@ -193,6 +199,14 @@ function formatDate(d: Date): string {
   });
 }
 
+/** Ex. "29/03/2026 à 7h00" — utilisé pour les dates de période avec horaire. */
+function formatDateTime(d: Date): string {
+  const date = formatDate(d);
+  const hours = d.getHours();
+  const minutes = String(d.getMinutes()).padStart(2, "0");
+  return `${date} à ${hours}h${minutes}`;
+}
+
 function fmtMoney(n: number): string {
   return `${n.toFixed(2).replace(".", ",")} €`;
 }
@@ -202,15 +216,26 @@ export function QuotePDFDocument({ data }: { data: QuoteData }) {
   const ht = data.agency.vatEnabled ? ttc / (1 + VAT_RATE) : ttc;
   const vat = data.agency.vatEnabled ? ttc - ht : 0;
 
+  // Ordre demandé : nom (en partyName) → adresse → ville/CP → pays → téléphone → email
   const agencyLines: string[] = [];
   if (data.agency.address) agencyLines.push(data.agency.address);
-  const cityLine = [data.agency.postalCode, data.agency.city]
+  const agencyCityLine = [data.agency.postalCode, data.agency.city]
     .filter(Boolean)
     .join(" ");
-  if (cityLine) agencyLines.push(cityLine);
+  if (agencyCityLine) agencyLines.push(agencyCityLine);
   if (data.agency.country) agencyLines.push(data.agency.country);
-  if (data.agency.phone) agencyLines.push(`Tél. ${data.agency.phone}`);
+  if (data.agency.phone) agencyLines.push(data.agency.phone);
   if (data.agency.email) agencyLines.push(data.agency.email);
+
+  const customerLines: string[] = [];
+  if (data.customer.address) customerLines.push(data.customer.address);
+  const customerCityLine = [data.customer.postalCode, data.customer.city]
+    .filter(Boolean)
+    .join(" ");
+  if (customerCityLine) customerLines.push(customerCityLine);
+  if (data.customer.country) customerLines.push(data.customer.country);
+  if (data.customer.phone) customerLines.push(data.customer.phone);
+  if (data.customer.email) customerLines.push(data.customer.email);
 
   const legalLines: string[] = [];
   if (data.agency.legalForm) legalLines.push(data.agency.legalForm);
@@ -229,76 +254,100 @@ export function QuotePDFDocument({ data }: { data: QuoteData }) {
   return (
     <PDFDocument>
       <Page size="A4" style={styles.page}>
-        {/* Header */}
+        {/* Header — logo + titre alignés sur la même ligne */}
         <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            {data.agency.logoUrl && (
-              /* eslint-disable-next-line jsx-a11y/alt-text */
-              <Image src={data.agency.logoUrl} style={styles.logo} />
-            )}
-            <Text style={styles.agencyName}>{data.agency.name}</Text>
-            {agencyLines.map((line, i) => (
-              <Text key={i}>{line}</Text>
-            ))}
-          </View>
+          {data.agency.logoUrl ? (
+            /* eslint-disable-next-line jsx-a11y/alt-text */
+            <Image src={data.agency.logoUrl} style={styles.logo} />
+          ) : (
+            <View style={styles.logo} />
+          )}
+          <Text style={styles.title}>
+            DEVIS-{data.quoteNumber.replace(/^DEV-/, "")}
+          </Text>
+        </View>
 
-          <View style={styles.headerRight}>
-            <Text style={styles.quoteTitle}>Devis</Text>
-            <View style={styles.metaBlock}>
-              <View style={styles.metaLine}>
-                <Text style={styles.metaLabel}>Numéro</Text>
-                <Text>{data.quoteNumber}</Text>
-              </View>
-              <View style={styles.metaLine}>
-                <Text style={styles.metaLabel}>Date d&apos;émission</Text>
-                <Text>{formatDate(data.issuedAt)}</Text>
-              </View>
-              <View style={styles.metaLine}>
-                <Text style={styles.metaLabel}>Valable jusqu&apos;au</Text>
-                <Text>{formatDate(data.validUntil)}</Text>
-              </View>
+        {/* Loueur + Client — labels au-dessus, blocs côte-à-côte */}
+        <View style={{ ...styles.section, flexDirection: "row", gap: 12 }}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.sectionTitle}>Loueur</Text>
+            <View style={styles.partyBlock}>
+              <Text style={styles.partyName}>{data.agency.name}</Text>
+              {agencyLines.map((line, i) => (
+                <Text key={i}>{line}</Text>
+              ))}
+            </View>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.sectionTitle}>Client</Text>
+            <View style={styles.partyBlock}>
+              {data.customer.companyName ? (
+                <>
+                  <Text style={styles.partyName}>
+                    {data.customer.companyName}
+                  </Text>
+                  {data.customer.siret && (
+                    <Text>SIRET {data.customer.siret}</Text>
+                  )}
+                  {data.customer.vatNumber && (
+                    <Text>TVA {data.customer.vatNumber}</Text>
+                  )}
+                  {customerLines.map((line, i) => (
+                    <Text key={i}>{line}</Text>
+                  ))}
+                  <Text style={{ marginTop: 4, color: "#555" }}>
+                    À l&apos;attention de {data.customer.firstName}{" "}
+                    {data.customer.lastName}
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.partyName}>
+                    {data.customer.firstName} {data.customer.lastName}
+                  </Text>
+                  {customerLines.map((line, i) => (
+                    <Text key={i}>{line}</Text>
+                  ))}
+                </>
+              )}
             </View>
           </View>
         </View>
 
-        {/* Client */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Devis établi pour</Text>
-          <View style={styles.customerBlock}>
-            <Text style={{ fontFamily: "Helvetica-Bold", marginBottom: 2 }}>
-              {data.customer.firstName} {data.customer.lastName}
-            </Text>
-            <Text>{data.customer.address}</Text>
-            <Text>
-              {data.customer.postalCode} {data.customer.city}
-            </Text>
-            <Text>{data.customer.country}</Text>
-            <Text>{data.customer.email}</Text>
-            <Text>{data.customer.phone}</Text>
-          </View>
-        </View>
-
-        {/* Location */}
+        {/* Détail de la location encadré */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Détail de la location</Text>
-          <View style={styles.metaLine}>
-            <Text style={styles.metaLabel}>Véhicule</Text>
-            <Text>
-              {data.vehicle.brand} {data.vehicle.model} —{" "}
-              {data.vehicle.registrationPlate}
-            </Text>
-          </View>
-          <View style={styles.metaLine}>
-            <Text style={styles.metaLabel}>Période</Text>
-            <Text>
-              du {formatDate(data.startDate)} au {formatDate(data.endDate)}
-            </Text>
-          </View>
-          <View style={styles.metaLine}>
-            <Text style={styles.metaLabel}>Durée</Text>
-            <Text>
-              {data.numberOfDays} jour{data.numberOfDays > 1 ? "s" : ""}
-            </Text>
+          <View style={styles.detailsBlock}>
+            <View style={styles.metaLine}>
+              <Text style={styles.metaLabel}>Date d&apos;émission</Text>
+              <Text>{formatDate(data.issuedAt)}</Text>
+            </View>
+            <View style={styles.metaLine}>
+              <Text style={styles.metaLabel}>Valable jusqu&apos;au</Text>
+              <Text>{formatDate(data.validUntil)}</Text>
+            </View>
+            <View style={styles.metaLine}>
+              <Text style={styles.metaLabel}>Véhicule</Text>
+              <Text>
+                {data.vehicle.brand} {data.vehicle.model}
+              </Text>
+            </View>
+            <View style={styles.metaLine}>
+              <Text style={styles.metaLabel}>Immatriculation</Text>
+              <Text>{data.vehicle.registrationPlate}</Text>
+            </View>
+            <View style={styles.metaLine}>
+              <Text style={styles.metaLabel}>Période</Text>
+              <Text>
+                {formatDateTime(data.startDate)} - {formatDateTime(data.endDate)}
+              </Text>
+            </View>
+            <View style={{ ...styles.metaLine, marginBottom: 0 }}>
+              <Text style={styles.metaLabel}>Durée</Text>
+              <Text>
+                {data.numberOfDays} jour{data.numberOfDays > 1 ? "s" : ""}
+              </Text>
+            </View>
           </View>
         </View>
 
@@ -342,13 +391,35 @@ export function QuotePDFDocument({ data }: { data: QuoteData }) {
           </View>
 
           {!data.agency.vatEnabled && (
-            <Text
-              style={{ marginTop: 12, fontStyle: "italic", color: "#555" }}
-            >
+            <Text style={{ marginTop: 12, fontStyle: "italic", color: "#555" }}>
               TVA non applicable, art. 293 B du CGI.
             </Text>
           )}
         </View>
+
+        {/* RIB — affiché uniquement si l'agence a coché l'option */}
+        {data.agency.showRibOnQuote && data.agency.rib && (
+          <View
+            style={{
+              marginTop: 16,
+              borderWidth: 1,
+              borderColor: "#ddd",
+              padding: 10,
+              borderRadius: 8,
+            }}
+          >
+            <Text
+              style={{
+                fontFamily: "Helvetica-Bold",
+                fontSize: 10,
+                marginBottom: 4,
+              }}
+            >
+              Coordonnées bancaires (IBAN)
+            </Text>
+            <Text style={{ fontSize: 10 }}>{data.agency.rib}</Text>
+          </View>
+        )}
 
         {/* Footer — mentions légales */}
         <Text style={styles.footer}>

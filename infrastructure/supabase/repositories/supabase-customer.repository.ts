@@ -49,6 +49,9 @@ export const createSupabaseCustomerRepository = (): CustomerRepository => {
         driver_license_number: input.driverLicenseNumber ?? null,
         driver_license_issued_at: input.driverLicenseIssuedAt ?? null,
         driver_license_country: input.driverLicenseCountry ?? null,
+        company_name: input.companyName ?? null,
+        siret: input.siret ?? null,
+        vat_number: input.vatNumber ?? null,
       })
       .select()
       .single();
@@ -89,7 +92,9 @@ export const createSupabaseCustomerRepository = (): CustomerRepository => {
           c.firstName.toLowerCase().includes(s) ||
           c.lastName.toLowerCase().includes(s) ||
           c.email.toLowerCase().includes(s) ||
-          c.phone.includes(s)
+          c.phone.includes(s) ||
+          (c.companyName?.toLowerCase().includes(s) ?? false) ||
+          (c.siret?.includes(s) ?? false)
       );
       const total = results.length;
       const from = (page - 1) * pageSize;
@@ -123,6 +128,9 @@ export const createSupabaseCustomerRepository = (): CustomerRepository => {
       patch.driver_license_issued_at = input.driverLicenseIssuedAt;
     if (input.driverLicenseCountry !== undefined)
       patch.driver_license_country = input.driverLicenseCountry;
+    if (input.companyName !== undefined) patch.company_name = input.companyName;
+    if (input.siret !== undefined) patch.siret = input.siret;
+    if (input.vatNumber !== undefined) patch.vat_number = input.vatNumber;
 
     const { data, error } = await supabase
       .from("customers")
@@ -134,5 +142,25 @@ export const createSupabaseCustomerRepository = (): CustomerRepository => {
     return toDomainCustomer(data);
   };
 
-  return { findById, findByEmail, create, findAll, update };
+  const deleteCustomer: CustomerRepository["delete"] = async (customerId) => {
+    const supabase = createAdminClient();
+    const { error } = await supabase
+      .from("customers")
+      .delete()
+      .eq("id", customerId);
+    if (error) {
+      throw new Error(
+        `Impossible de supprimer le client : ${error.message}`
+      );
+    }
+  };
+
+  return {
+    findById,
+    findByEmail,
+    create,
+    findAll,
+    update,
+    delete: deleteCustomer,
+  };
 };

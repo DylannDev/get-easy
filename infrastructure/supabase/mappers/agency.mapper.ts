@@ -78,6 +78,10 @@ export function toDomainAgency(
         | null
         | undefined) ?? null,
     quoteValidityDays: row.quote_validity_days ?? 30,
+    rib: row.rib ?? null,
+    showRibOnQuote: row.show_rib_on_quote ?? false,
+    smsEnabled: row.sms_enabled ?? false,
+    smsAdminPhone: row.sms_admin_phone ?? null,
     vehicles,
   };
 }

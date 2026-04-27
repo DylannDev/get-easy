@@ -15,6 +15,9 @@ export interface CreateCustomerInput {
   driverLicenseNumber?: string | null;
   driverLicenseIssuedAt?: string | null; // YYYY-MM-DD
   driverLicenseCountry?: string | null;
+  companyName?: string | null;
+  siret?: string | null;
+  vatNumber?: string | null;
 }
 
 export interface UpdateCustomerInput {
@@ -32,6 +35,9 @@ export interface UpdateCustomerInput {
   driverLicenseNumber?: string | null;
   driverLicenseIssuedAt?: string | null;
   driverLicenseCountry?: string | null;
+  companyName?: string | null;
+  siret?: string | null;
+  vatNumber?: string | null;
 }
 
 export interface CustomerRepository {
@@ -47,4 +53,7 @@ export interface CustomerRepository {
     customerId: string,
     input: UpdateCustomerInput
   ): Promise<Customer | null>;
+  /** Hard-delete d'un client. Cascade DB sur `bookings` et
+   *  `customer_documents` mais bloquée par `quotes` (FK RESTRICT). */
+  delete(customerId: string): Promise<void>;
 }

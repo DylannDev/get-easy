@@ -55,6 +55,12 @@ export interface ContractData {
     country?: string;
     phone?: string;
     email?: string;
+    /** Champs pro (B2B). Si `companyName` rempli, l'entreprise apparaît
+     *  comme locataire principal et le conducteur (firstName/lastName) est
+     *  désigné en dessous. */
+    companyName?: string | null;
+    siret?: string | null;
+    vatNumber?: string | null;
   };
 
   vehicle: {
@@ -260,14 +266,36 @@ export function ContractPDFDocument({ data }: { data: ContractData }) {
 
         <Text style={styles.partyTitle}>Et : Le Locataire</Text>
         <View style={styles.block}>
-          <Row label="Nom et prénoms" value={customerName || undefined} />
-          <Row label="Date et lieu de naissance" value={birthFmt || undefined} />
+          {c.companyName && (
+            <>
+              <Row label="Dénomination" value={c.companyName} />
+              <Row label="SIRET" value={c.siret ?? undefined} />
+              <Row label="N° TVA intracom." value={c.vatNumber ?? undefined} />
+              <Row label="Adresse siège" value={customerAddress || undefined} />
+              <Row
+                label="Représentée par"
+                value={customerName || undefined}
+              />
+            </>
+          )}
+          {!c.companyName && (
+            <>
+              <Row label="Nom et prénoms" value={customerName || undefined} />
+              <Row label="Date et lieu de naissance" value={birthFmt || undefined} />
+              <Row label="Adresse" value={customerAddress || undefined} />
+            </>
+          )}
           <Row label="N° pièce d'identité" value={c.idNumber} />
           <Row label="Délivrée le" value={c.idIssuedAt} />
           <Row label="N° permis de conduire" value={c.licenseNumber} />
           <Row label="Délivré le" value={c.licenseIssuedAt} />
           <Row label="Valable jusqu'au" value={c.licenseValidUntil} />
-          <Row label="Adresse" value={customerAddress || undefined} />
+          {c.companyName && (
+            <Row
+              label="Date et lieu de naissance"
+              value={birthFmt || undefined}
+            />
+          )}
           <Row label="Téléphone" value={c.phone} />
           <Row label="Email" value={c.email} />
         </View>

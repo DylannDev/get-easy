@@ -2,76 +2,26 @@ import type { AgencyRepository } from "@/domain/agency";
 import type { BookingRepository } from "@/domain/booking";
 import type { CustomerRepository } from "@/domain/customer";
 import type { VehicleRepository } from "@/domain/vehicle";
-import type { DocumentRepository, Document } from "@/domain/document";
+import type { DocumentRepository } from "@/domain/document";
 import type { OptionRepository } from "@/domain/option";
 import { computeBilledDays } from "@/domain/vehicle";
-import { computeOptionLineTotal } from "@/domain/option";
-import { getCountryName } from "@/lib/countries";
 import { fetchImageAsDataUrl } from "@/lib/pdf/fetch-image-as-data-url";
+import type {
+  GenerateInvoiceOutcome,
+  InvoiceNumberAllocator,
+  InvoicePdfData,
+  InvoicePdfRenderer,
+} from "./generate-invoice/types";
+import { buildInvoiceItems } from "./generate-invoice/build-invoice-items";
+import { buildInvoicePdfData } from "./generate-invoice/build-pdf-data";
 
-/**
- * Ports spécifiques à la génération de facture : numérotation et rendu PDF.
- * Implémentés côté infrastructure pour que la couche application reste
- * agnostique (testable sans Supabase ni @react-pdf/renderer).
- */
-export interface InvoiceNumberAllocator {
-  allocate(organizationId: string, year: number): Promise<string>;
-}
-
-export interface InvoicePdfRenderer {
-  /**
-   * Produit un Buffer PDF à partir des données de facture. L'implémentation
-   * importe `@react-pdf/renderer` dynamiquement pour ne pas polluer le bundle
-   * client.
-   */
-  render(data: InvoicePdfData): Promise<Buffer>;
-}
-
-// Ré-export du type attendu par le renderer (évite un import croisé depuis le
-// template PDF côté application).
-export interface InvoicePdfData {
-  invoiceNumber: string;
-  issuedAt: Date;
-  agency: {
-    name: string;
-    address: string;
-    city: string;
-    postalCode?: string | null;
-    country?: string | null;
-    phone?: string | null;
-    email?: string | null;
-    legalForm?: string | null;
-    capitalSocial?: string | null;
-    rcsCity?: string | null;
-    rcsNumber?: string | null;
-    siret?: string | null;
-    tvaIntracom?: string | null;
-    logoUrl?: string | null;
-    vatEnabled: boolean;
-  };
-  customer: {
-    firstName: string;
-    lastName: string;
-    email: string;
-    phone: string;
-    address: string;
-    postalCode: string;
-    city: string;
-    country: string;
-  };
-  vehicle: { brand: string; model: string; registrationPlate: string };
-  startDate: Date;
-  endDate: Date;
-  numberOfDays: number;
-  pricePerDay: number;
-  items: {
-    label: string;
-    quantity: number;
-    unitPriceTTC: number;
-    totalTTC: number;
-  }[];
-  totalTTC: number;
-}
+// Re-exports historiques pour les callers externes (composition-root, etc.).
+export type {
+  InvoiceNumberAllocator,
+  InvoicePdfRenderer,
+  InvoicePdfData,
+  GenerateInvoiceOutcome,
+};
 
 interface Deps {
   bookingRepository: BookingRepository;
@@ -84,14 +34,13 @@ interface Deps {
   pdfRenderer: InvoicePdfRenderer;
 }
 
-export type GenerateInvoiceOutcome =
-  | { kind: "created"; document: Document }
-  | { kind: "regenerated"; document: Document }
-  | { kind: "error"; message: string };
-
+/**
+ * Génère ou régénère le PDF de facture pour une réservation. Si une facture
+ * existe déjà : même numéro, même date d'émission, le binaire est remplacé.
+ * Sinon : nouveau numéro alloué via `numberAllocator`, document créé. */
 export const createGenerateInvoiceUseCase = (deps: Deps) => {
   const execute = async (
-    bookingId: string
+    bookingId: string,
   ): Promise<GenerateInvoiceOutcome> => {
     const booking = await deps.bookingRepository.findById(bookingId);
     if (!booking) return { kind: "error", message: "Réservation introuvable." };
@@ -105,162 +54,65 @@ export const createGenerateInvoiceUseCase = (deps: Deps) => {
       return { kind: "error", message: "Données de réservation incomplètes." };
     }
     if (!agency.organizationId) {
-      return {
-        kind: "error",
-        message: "Organisation de l'agence introuvable.",
-      };
+      return { kind: "error", message: "Organisation de l'agence introuvable." };
     }
 
-    // Options attachées : on utilise les snapshots persistés pour que le PDF
-    // reflète exactement ce qui a été facturé au moment de la réservation.
     const bookingOptions = await deps.optionRepository.listForBooking(
-      booking.id
+      booking.id,
     );
 
     const startDate = new Date(booking.startDate);
     const endDate = new Date(booking.endDate);
     const numberOfDays = Math.max(1, computeBilledDays(startDate, endDate));
 
-    // Le prix facturé doit refléter ce que le client a réellement payé,
-    // indépendamment d'éventuels changements de tarif ultérieurs. On
-    // reconstitue donc le prix/jour véhicule en retirant du `totalPrice` du
-    // booking (autoritaire, posté par Stripe) la somme des options facturées
-    // à partir de leurs snapshots.
-    const optionsTotalSnapshot = bookingOptions.reduce(
-      (acc, bo) =>
-        acc +
-        computeOptionLineTotal(
-          {
-            unitPrice: bo.unitPriceSnapshot,
-            priceType: bo.priceTypeSnapshot,
-            quantity: bo.quantity,
-            monthlyCap: bo.monthlyCapSnapshot,
-          },
-          numberOfDays
-        ),
-      0
-    );
-    const vehicleTotal = Math.max(0, booking.totalPrice - optionsTotalSnapshot);
-    const pricePerDay = vehicleTotal / numberOfDays;
-
-    const items: InvoicePdfData["items"] = [
-      {
-        label: `Location ${vehicle.brand} ${vehicle.model} du ${startDate.toLocaleDateString("fr-FR")} au ${endDate.toLocaleDateString("fr-FR")}`,
-        quantity: numberOfDays,
-        unitPriceTTC: pricePerDay,
-        totalTTC: vehicleTotal,
-      },
-      ...bookingOptions.map((bo) => {
-        const isPerDay = bo.priceTypeSnapshot === "per_day";
-        const totalForLine = computeOptionLineTotal(
-          {
-            unitPrice: bo.unitPriceSnapshot,
-            priceType: bo.priceTypeSnapshot,
-            quantity: bo.quantity,
-            monthlyCap: bo.monthlyCapSnapshot,
-          },
-          numberOfDays
-        );
-        const capSuffix =
-          bo.monthlyCapSnapshot != null
-            ? ` — plafonné à ${bo.monthlyCapSnapshot.toFixed(2)} €/mois`
-            : "";
-        const label = isPerDay
-          ? `${bo.nameSnapshot} (${bo.unitPriceSnapshot.toFixed(2)} €/j × ${numberOfDays} j${capSuffix})`
-          : `${bo.nameSnapshot} (forfait)`;
-        return {
-          label,
-          quantity: bo.quantity,
-          unitPriceTTC:
-            bo.quantity > 0 ? totalForLine / bo.quantity : totalForLine,
-          totalTTC: totalForLine,
-        };
-      }),
-    ];
-    // Référence autoritaire du montant facturé.
-    const totalTTC = booking.totalPrice;
+    const { items, pricePerDay } = buildInvoiceItems({
+      vehicle,
+      bookingOptions,
+      bookingTotalPrice: booking.totalPrice,
+      startDate,
+      endDate,
+      numberOfDays,
+    });
 
     // Facture existante ? → régénération (même numéro, nouveau PDF).
     const existing = await deps.documentRepository.findInvoiceByBooking(
-      booking.id
+      booking.id,
     );
-
     const invoiceNumber =
       existing?.invoiceNumber ??
       (await deps.numberAllocator.allocate(
         agency.organizationId,
-        new Date().getFullYear()
+        new Date().getFullYear(),
       ));
+    const issuedAt = existing ? new Date(existing.createdAt) : new Date();
 
-    const issuedAt = existing
-      ? new Date(existing.createdAt) // conserve la date d'émission initiale
-      : new Date();
-
-    // Charge le logo (foncé en priorité) en base64 pour @react-pdf/renderer.
     const logoDataUrl = await fetchImageAsDataUrl(
-      agency.logoDarkUrl ?? agency.logoUrl ?? null
+      agency.logoDarkUrl ?? agency.logoUrl ?? null,
     );
 
-    const pdfData: InvoicePdfData = {
+    const pdfData = buildInvoicePdfData({
       invoiceNumber,
       issuedAt,
-      agency: {
-        name: agency.name,
-        address: agency.address,
-        city: agency.city,
-        postalCode: agency.postalCode ?? null,
-        country: agency.country
-          ? getCountryName(agency.country) ?? agency.country
-          : null,
-        phone: agency.phone ?? null,
-        email: agency.email ?? null,
-        legalForm: agency.legalForm ?? null,
-        capitalSocial: agency.capitalSocial ?? null,
-        rcsCity: agency.rcsCity ?? null,
-        rcsNumber: agency.rcsNumber ?? null,
-        siret: agency.siret ?? null,
-        tvaIntracom: agency.tvaIntracom ?? null,
-        // Data URL base64 — @react-pdf/renderer peut l'intégrer sans devoir
-        // fetcher une URL distante au moment du rendu.
-        logoUrl: logoDataUrl,
-        vatEnabled: agency.vatEnabled ?? false,
-      },
-      customer: {
-        firstName: customer.firstName,
-        lastName: customer.lastName,
-        email: customer.email,
-        phone: customer.phone,
-        address: customer.address,
-        postalCode: customer.postalCode,
-        city: customer.city,
-        // Le client stocke le code ISO (ex. "GF") → on résout en nom long
-        // pour la facture, avec fallback sur le code si non résolvable.
-        country: getCountryName(customer.country) ?? customer.country,
-      },
-      vehicle: {
-        brand: vehicle.brand,
-        model: vehicle.model,
-        registrationPlate: vehicle.registrationPlate,
-      },
+      agency,
+      customer,
+      vehicle,
       startDate,
       endDate,
       numberOfDays,
       pricePerDay,
       items,
-      totalTTC,
-    };
+      totalTTC: booking.totalPrice,
+      logoDataUrl,
+    });
 
     const pdfBuffer = await deps.pdfRenderer.render(pdfData);
-
     const fileName = `${invoiceNumber}.pdf`;
 
     if (existing) {
-      // Régénération : on remplace le binaire au même chemin, on garde la
-      // même ligne documents (numéro + date d'émission préservés).
       const updated = await deps.documentRepository.replaceContent(
         existing.id,
         pdfBuffer,
-        "application/pdf"
+        "application/pdf",
       );
       if (!updated) {
         return { kind: "error", message: "Échec de la régénération." };
@@ -271,7 +123,6 @@ export const createGenerateInvoiceUseCase = (deps: Deps) => {
     // Path stable pour faciliter la régénération future (même organisation,
     // même agence, même numéro → même emplacement).
     const filePath = `${agency.organizationId}/${agency.id}/invoice/${fileName}`;
-
     const created = await deps.documentRepository.create({
       agencyId: agency.id,
       bookingId: booking.id,

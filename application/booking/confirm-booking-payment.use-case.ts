@@ -1,47 +1,49 @@
-import { formatDateCayenne } from "@/lib/format-date";
 import type { BookingRepository } from "@/domain/booking";
 import type { CustomerRepository } from "@/domain/customer";
 import type { VehicleRepository } from "@/domain/vehicle";
-import type {
-  PaymentRepository,
-  PaymentGateway,
-} from "@/domain/payment";
-import { PaymentStatus } from "@/domain/payment";
+import type { OptionRepository } from "@/domain/option";
+import type { PaymentGateway, PaymentRepository } from "@/domain/payment";
 import { BookingStatus } from "@/domain/booking";
+import { PaymentStatus } from "@/domain/payment";
 import type { Notifier } from "../notifications/notification.port";
+import type {
+  ConfirmBookingPaymentInput,
+  ConfirmBookingPaymentOutcome,
+  SendAdminSmsParams,
+} from "./confirm-booking-payment/types";
+import { hasPaidConflict } from "./confirm-booking-payment/check-conflict";
+import {
+  notifyRejected,
+  refundSafe,
+} from "./confirm-booking-payment/refund-helpers";
+import { notifyBookingPaid } from "./confirm-booking-payment/notify-success";
 
-export interface ConfirmBookingPaymentInput {
-  bookingId: string;
-  paymentId: string;
-  stripePaymentIntentId: string | null;
-}
-
-export type ConfirmBookingPaymentOutcome =
-  | { kind: "approved" }
-  | { kind: "rejected_not_found" }
-  | { kind: "rejected_already_paid" }
-  | { kind: "rejected_dates_taken" }
-  | { kind: "error"; message: string };
+// Re-exports historiques.
+export type {
+  ConfirmBookingPaymentInput,
+  ConfirmBookingPaymentOutcome,
+} from "./confirm-booking-payment/types";
 
 interface ConfirmBookingPaymentDeps {
   bookingRepository: BookingRepository;
   paymentRepository: PaymentRepository;
   customerRepository: CustomerRepository;
   vehicleRepository: VehicleRepository;
+  optionRepository: OptionRepository;
   paymentGateway: PaymentGateway;
   notifier: Notifier;
   adminEmail: string;
   /**
-   * Optional — appelé en fire-and-forget une fois le booking passé en `paid`
-   * pour générer et stocker la facture PDF. Les erreurs sont silencieuses
-   * (loggées) pour ne pas interrompre le flow webhook Stripe.
-   */
+   * Optional — appelé en fire-and-forget une fois le booking passé en
+   * `paid` pour générer et stocker la facture PDF. Les erreurs sont
+   * silencieuses (loggées) pour ne pas interrompre le flow webhook. */
   generateInvoice?: (bookingId: string) => Promise<unknown>;
+  /** Optional — envoie un SMS à l'admin quand une réservation est payée. */
+  sendAdminSms?: (params: SendAdminSmsParams) => Promise<void>;
 }
 
 /**
- * Replaces the `checkout.session.completed` branch of the Stripe webhook
- * route (~370 lines).
+ * Gère le branchement `checkout.session.completed` du webhook Stripe.
  *
  * Validation rules (preserved exactly):
  *  V1. Booking must still exist.
@@ -52,45 +54,10 @@ interface ConfirmBookingPaymentDeps {
  * and notifies the customer with the appropriate reason.
  */
 export const createConfirmBookingPaymentUseCase = (
-  deps: ConfirmBookingPaymentDeps
+  deps: ConfirmBookingPaymentDeps,
 ) => {
-  // ----- helpers (closures) -----
-
-  const refundSafe = async (
-    intentId: string | null,
-    reason: "duplicate" | "requested_by_customer"
-  ): Promise<void> => {
-    if (!intentId) return;
-    try {
-      await deps.paymentGateway.refundByIntentId(intentId, reason);
-    } catch (e) {
-      console.error("❌ Refund failed:", e);
-    }
-  };
-
-  const notifyRejected = async (
-    customerId: string,
-    booking: { vehicleId: string; startDate: string; endDate: string },
-    reason: "unavailable" | "already_paid" | "not_found"
-  ): Promise<void> => {
-    const customer = await deps.customerRepository.findById(customerId);
-    const vehicle = await deps.vehicleRepository.findById(booking.vehicleId);
-    if (!customer || !vehicle) return;
-    await deps.notifier.sendBookingRejected({
-      to: customer.email,
-      firstName: customer.firstName,
-      lastName: customer.lastName,
-      vehicle: { brand: vehicle.brand, model: vehicle.model },
-      startDate: formatDateCayenne(booking.startDate, "dd MMMM yyyy"),
-      endDate: formatDateCayenne(booking.endDate, "dd MMMM yyyy"),
-      reason,
-    });
-  };
-
-  // ----- public API -----
-
   const execute = async (
-    input: ConfirmBookingPaymentInput
+    input: ConfirmBookingPaymentInput,
   ): Promise<ConfirmBookingPaymentOutcome> => {
     // V1 — booking exists
     const booking = await deps.bookingRepository.findById(input.bookingId);
@@ -98,7 +65,11 @@ export const createConfirmBookingPaymentUseCase = (
       await deps.paymentRepository.update(input.paymentId, {
         status: PaymentStatus.Refunded,
       });
-      await refundSafe(input.stripePaymentIntentId, "requested_by_customer");
+      await refundSafe(
+        deps.paymentGateway,
+        input.stripePaymentIntentId,
+        "requested_by_customer",
+      );
       return { kind: "rejected_not_found" };
     }
 
@@ -107,42 +78,54 @@ export const createConfirmBookingPaymentUseCase = (
       await deps.paymentRepository.update(input.paymentId, {
         status: PaymentStatus.Refunded,
       });
-      await notifyRejected(booking.customerId, booking, "already_paid");
-      await refundSafe(input.stripePaymentIntentId, "duplicate");
+      await notifyRejected({
+        customerRepository: deps.customerRepository,
+        vehicleRepository: deps.vehicleRepository,
+        notifier: deps.notifier,
+        customerId: booking.customerId,
+        vehicleId: booking.vehicleId,
+        startDate: booking.startDate,
+        endDate: booking.endDate,
+        reason: "already_paid",
+      });
+      await refundSafe(
+        deps.paymentGateway,
+        input.stripePaymentIntentId,
+        "duplicate",
+      );
       return { kind: "rejected_already_paid" };
     }
 
     // V3 — no paid conflict
-    const conflicts = await deps.bookingRepository.findPaidConflicts({
+    const conflict = await hasPaidConflict({
+      bookingRepository: deps.bookingRepository,
+      bookingId: booking.id,
       vehicleId: booking.vehicleId,
       startDate: new Date(booking.startDate),
       endDate: new Date(booking.endDate),
-      excludeBookingId: booking.id,
     });
-
-    // Re-apply day-level overlap (the SQL query is a coarse filter)
-    const start = new Date(booking.startDate);
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(booking.endDate);
-    end.setHours(0, 0, 0, 0);
-
-    const hasConflict = conflicts.some((other) => {
-      const oStart = new Date(other.start_date);
-      oStart.setHours(0, 0, 0, 0);
-      const oEnd = new Date(other.end_date);
-      oEnd.setHours(0, 0, 0, 0);
-      return start <= oEnd && end >= oStart;
-    });
-
-    if (hasConflict) {
+    if (conflict) {
       await deps.bookingRepository.update(booking.id, {
         status: BookingStatus.Refunded,
       });
       await deps.paymentRepository.update(input.paymentId, {
         status: PaymentStatus.Refunded,
       });
-      await notifyRejected(booking.customerId, booking, "unavailable");
-      await refundSafe(input.stripePaymentIntentId, "requested_by_customer");
+      await notifyRejected({
+        customerRepository: deps.customerRepository,
+        vehicleRepository: deps.vehicleRepository,
+        notifier: deps.notifier,
+        customerId: booking.customerId,
+        vehicleId: booking.vehicleId,
+        startDate: booking.startDate,
+        endDate: booking.endDate,
+        reason: "unavailable",
+      });
+      await refundSafe(
+        deps.paymentGateway,
+        input.stripePaymentIntentId,
+        "requested_by_customer",
+      );
       return { kind: "rejected_dates_taken" };
     }
 
@@ -156,7 +139,7 @@ export const createConfirmBookingPaymentUseCase = (
     });
 
     // Génération de la facture en fire-and-forget — on ne bloque pas le
-    // webhook Stripe si la création échoue, on log simplement l'erreur.
+    // webhook si la création échoue, on log simplement l'erreur.
     if (deps.generateInvoice) {
       try {
         await deps.generateInvoice(booking.id);
@@ -165,44 +148,16 @@ export const createConfirmBookingPaymentUseCase = (
       }
     }
 
-    // Notifications (failures are logged but do not abort the flow)
-    const customer = await deps.customerRepository.findById(booking.customerId);
-    const vehicle = await deps.vehicleRepository.findById(booking.vehicleId);
-
-    if (customer && vehicle) {
-      const startFormatted = formatDateCayenne(booking.startDate, "dd MMMM yyyy");
-      const startTimeFormatted = formatDateCayenne(booking.startDate, "HH'h'mm");
-      const endFormatted = formatDateCayenne(booking.endDate, "dd MMMM yyyy");
-      const endTimeFormatted = formatDateCayenne(booking.endDate, "HH'h'mm");
-
-      await deps.notifier.sendBookingPaidToClient({
-        to: customer.email,
-        firstName: customer.firstName,
-        lastName: customer.lastName,
-        email: customer.email,
-        startDate: startFormatted,
-        startTime: startTimeFormatted,
-        endDate: endFormatted,
-        endTime: endTimeFormatted,
-        totalPrice: booking.totalPrice,
-        vehicle: { brand: vehicle.brand, model: vehicle.model },
-      });
-
-      await deps.notifier.sendBookingPaidToAdmin({
-        to: deps.adminEmail,
-        firstName: customer.firstName,
-        lastName: customer.lastName,
-        customerEmail: customer.email,
-        customerPhone: customer.phone,
-        bookingId: booking.id,
-        startDate: startFormatted,
-        startTime: startTimeFormatted,
-        endDate: endFormatted,
-        endTime: endTimeFormatted,
-        totalPrice: booking.totalPrice,
-        vehicle: { brand: vehicle.brand, model: vehicle.model },
-      });
-    }
+    // Notifications client + admin (emails + SMS optionnel).
+    await notifyBookingPaid({
+      customerRepository: deps.customerRepository,
+      vehicleRepository: deps.vehicleRepository,
+      optionRepository: deps.optionRepository,
+      notifier: deps.notifier,
+      adminEmail: deps.adminEmail,
+      sendAdminSms: deps.sendAdminSms,
+      booking,
+    });
 
     return { kind: "approved" };
   };

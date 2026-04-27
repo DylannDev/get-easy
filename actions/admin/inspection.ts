@@ -68,7 +68,7 @@ export async function uploadInspectionPhoto(
     const rawBuffer = Buffer.from(await file.arrayBuffer());
     const resolvedMime = file.type || "image/jpeg";
     const compressed = await compressFile(rawBuffer, resolvedMime, {
-      image: { maxWidth: 1600, maxHeight: 1600, quality: 88 },
+      image: { maxWidth: 1000, maxHeight: 1000, quality: 88 },
     });
 
     // Build storage path : {org}/{agency}/inspection/{bookingId}/{uuid}.{ext}

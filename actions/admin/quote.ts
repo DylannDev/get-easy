@@ -3,6 +3,15 @@
 import { revalidatePath } from "next/cache";
 import { addDays, format } from "date-fns";
 import { getContainer } from "@/composition-root/container";
+import type { CustomerDocumentType } from "@/domain/customer-document";
+
+interface StagedDocumentInput {
+  stagingKey: string;
+  type: CustomerDocumentType;
+  fileName: string;
+  mimeType: string;
+  size: number;
+}
 
 interface ManualQuoteInput {
   vehicleId: string;
@@ -16,12 +25,21 @@ interface ManualQuoteInput {
     email: string;
     phone: string;
     birthDate: string;
+    birthPlace?: string | null;
     address: string;
+    address2?: string | null;
     postalCode: string;
     city: string;
     country: string;
+    driverLicenseNumber?: string | null;
+    driverLicenseIssuedAt?: string | null;
+    driverLicenseCountry?: string | null;
+    companyName?: string | null;
+    siret?: string | null;
+    vatNumber?: string | null;
   };
   selectedOptions?: { optionId: string; quantity: number }[];
+  stagedDocuments?: StagedDocumentInput[];
 }
 
 export interface CreateQuoteResult {
@@ -53,6 +71,7 @@ export async function createQuote(
     agencyRepository,
     quoteRepository,
     generateQuoteUseCase,
+    customerDocumentRepository,
   } = getContainer();
 
   const agency = await agencyRepository.findById(input.agencyId);
@@ -62,6 +81,13 @@ export async function createQuote(
   let customer = await customerRepository.findByEmail(input.customer.email);
   if (!customer) {
     customer = await customerRepository.create({ ...input.customer });
+  } else if (input.customer.companyName) {
+    const updated = await customerRepository.update(customer.id, {
+      companyName: input.customer.companyName,
+      siret: input.customer.siret ?? null,
+      vatNumber: input.customer.vatNumber ?? null,
+    });
+    if (updated) customer = updated;
   }
 
   // 2. Calcule la date de validité (par défaut 30 jours, paramétrable
@@ -165,6 +191,34 @@ export async function createQuote(
   const outcome = await generateQuoteUseCase.execute(quote.id);
   if (outcome.kind === "error") {
     return { ok: false, error: outcome.message };
+  }
+
+  // 6. Finalise les pièces jointes en staging — pas de booking pour un devis,
+  // donc on les lie uniquement au customer (booking_id = null).
+  if (input.stagedDocuments && input.stagedDocuments.length > 0) {
+    if (agency.organizationId) {
+      await Promise.all(
+        input.stagedDocuments.map(async (doc) => {
+          try {
+            await customerDocumentRepository.finalizeFromStaging({
+              stagingKey: doc.stagingKey,
+              customerId: customer.id,
+              bookingId: null,
+              type: doc.type,
+              organizationId: agency.organizationId!,
+              fileName: doc.fileName,
+              mimeType: doc.mimeType,
+              size: doc.size,
+            });
+          } catch (e) {
+            console.error(
+              `[quote] Failed to finalize customer document (${doc.type}):`,
+              e
+            );
+          }
+        })
+      );
+    }
   }
 
   revalidatePath("/admin/documents");

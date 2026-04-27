@@ -5,6 +5,13 @@ import { redirect } from "next/navigation";
 import { getContainer } from "@/composition-root/container";
 import { BookingStatus } from "@/domain/booking";
 import { findAvailabilityConflict } from "@/domain/vehicle";
+import { attachBookingOptions } from "./manual-booking/attach-booking-options";
+import { finalizeStagedDocuments } from "./manual-booking/finalize-staged-documents";
+import type {
+  ManualBookingCustomerInput,
+  SelectedOptionInput,
+  StagedDocumentInput,
+} from "./manual-booking/types";
 
 interface ManualBookingInput {
   vehicleId: string;
@@ -12,33 +19,38 @@ interface ManualBookingInput {
   startDate: string;
   endDate: string;
   totalPrice: number;
-  customer: {
-    firstName: string;
-    lastName: string;
-    email: string;
-    phone: string;
-    birthDate: string;
-    address: string;
-    postalCode: string;
-    city: string;
-    country: string;
-  };
-  selectedOptions?: { optionId: string; quantity: number }[];
+  customer: ManualBookingCustomerInput;
+  selectedOptions?: SelectedOptionInput[];
+  stagedDocuments?: StagedDocumentInput[];
 }
 
+/**
+ * Crée une réservation depuis le wizard admin. Le client est trouvé par
+ * email ou créé. Si le client existe déjà et que la gérante a renseigné
+ * une raison sociale, on synchronise les champs B2B sans toucher au reste.
+ * Les options sont attachées avec snapshots, les pièces jointes en staging
+ * sont matérialisées (erreurs silencieuses, docs facultatifs). */
 export async function createManualBooking(input: ManualBookingInput) {
-  const { customerRepository, bookingRepository, optionRepository } =
-    getContainer();
+  const {
+    customerRepository,
+    bookingRepository,
+    optionRepository,
+    agencyRepository,
+    customerDocumentRepository,
+  } = getContainer();
 
-  // Find or create customer
   let customer = await customerRepository.findByEmail(input.customer.email);
   if (!customer) {
-    customer = await customerRepository.create({
-      ...input.customer,
+    customer = await customerRepository.create({ ...input.customer });
+  } else if (input.customer.companyName) {
+    const updated = await customerRepository.update(customer.id, {
+      companyName: input.customer.companyName,
+      siret: input.customer.siret ?? null,
+      vatNumber: input.customer.vatNumber ?? null,
     });
+    if (updated) customer = updated;
   }
 
-  // Create booking as paid directly
   const booking = await bookingRepository.create({
     customerId: customer.id,
     vehicleId: input.vehicleId,
@@ -49,26 +61,22 @@ export async function createManualBooking(input: ManualBookingInput) {
     status: BookingStatus.Paid,
   });
 
-  // Attach selected options with server-side snapshots
-  for (const selected of input.selectedOptions ?? []) {
-    const option = await optionRepository.findById(selected.optionId);
-    if (!option || !option.active || option.agencyId !== input.agencyId) {
-      continue;
-    }
-    const qty = Math.max(1, Math.min(option.maxQuantity, selected.quantity));
-    await optionRepository.attachToBooking({
-      bookingId: booking.id,
-      optionId: option.id,
-      quantity: qty,
-      unitPriceSnapshot: option.price,
-      priceTypeSnapshot: option.priceType,
-      nameSnapshot: option.name,
-      monthlyCapSnapshot:
-        option.capEnabled && option.priceType === "per_day"
-          ? option.monthlyCap
-          : null,
-    });
-  }
+  await attachBookingOptions({
+    optionRepository,
+    bookingId: booking.id,
+    agencyId: input.agencyId,
+    selectedOptions: input.selectedOptions ?? [],
+    detachFirst: false,
+  });
+
+  await finalizeStagedDocuments({
+    customerDocumentRepository,
+    agencyRepository,
+    agencyId: input.agencyId,
+    customerId: customer.id,
+    bookingId: booking.id,
+    stagedDocuments: input.stagedDocuments ?? [],
+  });
 
   revalidatePath("/admin");
   revalidatePath("/admin/reservations");
@@ -82,18 +90,9 @@ interface UpdateManualBookingInput {
   startDate: string;
   endDate: string;
   totalPrice: number;
-  customer: {
-    firstName: string;
-    lastName: string;
-    email: string;
-    phone: string;
-    birthDate: string;
-    address: string;
-    postalCode: string;
-    city: string;
-    country: string;
-  };
-  selectedOptions?: { optionId: string; quantity: number }[];
+  customer: ManualBookingCustomerInput;
+  selectedOptions?: SelectedOptionInput[];
+  stagedDocuments?: StagedDocumentInput[];
 }
 
 /**
@@ -108,13 +107,15 @@ interface UpdateManualBookingInput {
  *  - La vérification des dispos ignore le booking courant.
  */
 export async function updateManualBooking(
-  input: UpdateManualBookingInput
+  input: UpdateManualBookingInput,
 ): Promise<{ ok: boolean; error?: string }> {
   const {
     bookingRepository,
     customerRepository,
     vehicleRepository,
     optionRepository,
+    agencyRepository,
+    customerDocumentRepository,
   } = getContainer();
 
   const existing = await bookingRepository.findById(input.bookingId);
@@ -132,15 +133,13 @@ export async function updateManualBooking(
     };
   }
 
-  // Vérification des dispos sur le véhicule cible (peut-être nouveau),
-  // en excluant le booking courant.
   const vehicle = await vehicleRepository.findById(input.vehicleId);
   if (!vehicle) {
     return { ok: false, error: "Véhicule introuvable." };
   }
   const conflictBookings =
     await bookingRepository.findActiveAvailabilityViewsByVehicleId(
-      input.vehicleId
+      input.vehicleId,
     );
   const conflict = findAvailabilityConflict(
     vehicle,
@@ -151,7 +150,7 @@ export async function updateManualBooking(
       excludeBookingId: input.bookingId,
       // Contexte admin : la gérante édite sa propre résa (même payée).
       allowExcludingPaid: true,
-    }
+    },
   );
   if (conflict) {
     return {
@@ -161,10 +160,8 @@ export async function updateManualBooking(
     };
   }
 
-  // Met à jour le client (infos éditées dans le formulaire).
   await customerRepository.update(existing.customerId, input.customer);
 
-  // Met à jour le booking (dates, véhicule, total).
   await bookingRepository.update(input.bookingId, {
     vehicleId: input.vehicleId,
     startDate: input.startDate,
@@ -172,27 +169,22 @@ export async function updateManualBooking(
     totalPrice: input.totalPrice,
   });
 
-  // Recompose les options : on efface tout et on re-attache.
-  await optionRepository.detachAllFromBooking(input.bookingId);
-  for (const selected of input.selectedOptions ?? []) {
-    const option = await optionRepository.findById(selected.optionId);
-    if (!option || !option.active || option.agencyId !== existing.agencyId) {
-      continue;
-    }
-    const qty = Math.max(1, Math.min(option.maxQuantity, selected.quantity));
-    await optionRepository.attachToBooking({
-      bookingId: input.bookingId,
-      optionId: option.id,
-      quantity: qty,
-      unitPriceSnapshot: option.price,
-      priceTypeSnapshot: option.priceType,
-      nameSnapshot: option.name,
-      monthlyCapSnapshot:
-        option.capEnabled && option.priceType === "per_day"
-          ? option.monthlyCap
-          : null,
-    });
-  }
+  await attachBookingOptions({
+    optionRepository,
+    bookingId: input.bookingId,
+    agencyId: existing.agencyId,
+    selectedOptions: input.selectedOptions ?? [],
+    detachFirst: true,
+  });
+
+  await finalizeStagedDocuments({
+    customerDocumentRepository,
+    agencyRepository,
+    agencyId: existing.agencyId,
+    customerId: existing.customerId,
+    bookingId: input.bookingId,
+    stagedDocuments: input.stagedDocuments ?? [],
+  });
 
   revalidatePath("/admin");
   revalidatePath("/admin/reservations");

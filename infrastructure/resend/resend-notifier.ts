@@ -3,11 +3,13 @@ import type {
   BookingPaidClientNotification,
   BookingPaidAdminNotification,
   BookingRejectedNotification,
+  BookingDocumentsNotification,
   NotificationResult,
 } from "@/application/notifications/notification.port";
 import { BookingPaidClientEmail } from "@/emails/BookingPaidClientEmail";
 import { BookingPaidAdminEmail } from "@/emails/BookingPaidAdminEmail";
 import { BookingRejectedEmail } from "@/emails/BookingRejectedEmail";
+import { BookingDocumentsEmail } from "@/emails/BookingDocumentsEmail";
 import { resend } from "./resend.client";
 
 const FROM_ADDRESS = "Get Easy <noreply@geteasylocation.com>";
@@ -39,6 +41,7 @@ export const createResendNotifier = (): Notifier => {
           endTime: payload.endTime,
           totalPrice: payload.totalPrice,
           vehicle: payload.vehicle,
+          options: payload.options,
         }),
       });
       if (error) {
@@ -74,6 +77,7 @@ export const createResendNotifier = (): Notifier => {
           endTime: payload.endTime,
           totalPrice: payload.totalPrice,
           vehicle: payload.vehicle,
+          options: payload.options,
         }),
       });
       if (error) {
@@ -121,9 +125,46 @@ export const createResendNotifier = (): Notifier => {
     }
   };
 
+  const sendBookingDocumentsToClient = async (
+    payload: BookingDocumentsNotification
+  ): Promise<NotificationResult> => {
+    try {
+      const { error } = await resend.emails.send({
+        from: FROM_ADDRESS,
+        to: payload.to,
+        subject: `Documents de votre réservation - ${payload.vehicle.brand} ${payload.vehicle.model}`,
+        react: BookingDocumentsEmail({
+          firstName: payload.firstName,
+          lastName: payload.lastName,
+          vehicle: payload.vehicle,
+          startDate: payload.startDate,
+          endDate: payload.endDate,
+          documentLabels: payload.documentLabels,
+        }),
+        attachments: payload.attachments.map((a) => ({
+          filename: a.filename,
+          content: a.content,
+          contentType: a.contentType,
+        })),
+      });
+      if (error) {
+        console.error("❌ Erreur lors de l'envoi des documents:", error);
+        return { success: false, error: error.message };
+      }
+      return { success: true };
+    } catch (e) {
+      console.error("❌ Erreur inattendue (envoi documents):", e);
+      return {
+        success: false,
+        error: e instanceof Error ? e.message : "Erreur inconnue",
+      };
+    }
+  };
+
   return {
     sendBookingPaidToClient,
     sendBookingPaidToAdmin,
     sendBookingRejected,
+    sendBookingDocumentsToClient,
   };
 };

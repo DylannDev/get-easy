@@ -21,4 +21,5 @@ export interface BookingWithDetails {
   vehicleBrand: string;
   vehicleModel: string;
   vehicleColor: string;
+  vehicleRegistrationPlate: string;
 }

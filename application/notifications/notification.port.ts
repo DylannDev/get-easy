@@ -8,6 +8,11 @@
  * concern, which is why the port lives here rather than in the domain layer.
  */
 
+export interface BookingOptionSummary {
+  name: string;
+  quantity: number;
+}
+
 export interface BookingPaidClientNotification {
   to: string;
   firstName: string;
@@ -19,6 +24,7 @@ export interface BookingPaidClientNotification {
   endTime: string;
   totalPrice: number;
   vehicle: { brand: string; model: string };
+  options?: BookingOptionSummary[];
 }
 
 export interface BookingPaidAdminNotification {
@@ -34,6 +40,7 @@ export interface BookingPaidAdminNotification {
   endTime: string;
   totalPrice: number;
   vehicle: { brand: string; model: string };
+  options?: BookingOptionSummary[];
 }
 
 export interface BookingRejectedNotification {
@@ -44,6 +51,24 @@ export interface BookingRejectedNotification {
   startDate: string;
   endDate: string;
   reason: "unavailable" | "already_paid" | "not_found";
+}
+
+export interface EmailAttachment {
+  filename: string;
+  content: Buffer;
+  contentType: string;
+}
+
+export interface BookingDocumentsNotification {
+  to: string;
+  firstName: string;
+  lastName: string;
+  vehicle: { brand: string; model: string };
+  startDate: string;
+  endDate: string;
+  attachments: EmailAttachment[];
+  /** Liste des libellés des docs joints (pour affichage dans l'email). */
+  documentLabels: string[];
 }
 
 export interface NotificationResult {
@@ -62,5 +87,9 @@ export interface Notifier {
 
   sendBookingRejected(
     payload: BookingRejectedNotification
+  ): Promise<NotificationResult>;
+
+  sendBookingDocumentsToClient(
+    payload: BookingDocumentsNotification
   ): Promise<NotificationResult>;
 }

@@ -58,5 +58,13 @@ export interface Agency {
   defaultLoueurSignature?: string | null;
   /** Durée de validité (en jours) appliquée par défaut aux devis émis. */
   quoteValidityDays?: number;
+  /** RIB / IBAN affiché en bas des devis (si showRibOnQuote est true). */
+  rib?: string | null;
+  /** Afficher le RIB sur les devis PDF. */
+  showRibOnQuote?: boolean;
+  /** Notifications SMS activées pour cette agence. */
+  smsEnabled?: boolean;
+  /** Numéro de téléphone de l'admin pour les notifications SMS. */
+  smsAdminPhone?: string | null;
   vehicles: Vehicle[];
 }

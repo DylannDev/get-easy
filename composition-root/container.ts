@@ -93,6 +93,18 @@ import {
   type GenerateInspectionUseCase,
 } from "@/application/admin/documents/generate-inspection.use-case";
 import {
+  createSendBookingDocumentsUseCase,
+  type SendBookingDocumentsUseCase,
+} from "@/application/admin/documents/send-booking-documents.use-case";
+import {
+  createDeleteBookingUseCase,
+  type DeleteBookingUseCase,
+} from "@/application/admin/delete-booking.use-case";
+import {
+  createDeleteCustomerUseCase,
+  type DeleteCustomerUseCase,
+} from "@/application/admin/delete-customer.use-case";
+import {
   createGenerateContractUseCase,
   type GenerateContractUseCase,
 } from "@/application/admin/documents/generate-contract.use-case";
@@ -127,10 +139,6 @@ import {
   type VerifyCheckoutSessionUseCase,
 } from "@/application/booking/verify-checkout-session.use-case";
 import {
-  createGetDashboardSummaryUseCase,
-  type GetDashboardSummaryUseCase,
-} from "@/application/admin/get-dashboard-summary.use-case";
-import {
   createGetPlanningDataUseCase,
   type GetPlanningDataUseCase,
 } from "@/application/admin/get-planning-data.use-case";
@@ -164,7 +172,6 @@ export interface Container {
   handlePaymentFailedUseCase: HandlePaymentFailedUseCase;
   recordRefundedChargeUseCase: RecordRefundedChargeUseCase;
   verifyCheckoutSessionUseCase: VerifyCheckoutSessionUseCase;
-  getDashboardSummaryUseCase: GetDashboardSummaryUseCase;
   getPlanningDataUseCase: GetPlanningDataUseCase;
   getStatisticsUseCase: GetStatisticsUseCase;
   listOptionsUseCase: ListOptionsUseCase;
@@ -182,6 +189,9 @@ export interface Container {
   saveContractFieldsUseCase: SaveContractFieldsUseCase;
   generateQuoteUseCase: GenerateQuoteUseCase;
   generateInspectionUseCase: GenerateInspectionUseCase;
+  sendBookingDocumentsUseCase: SendBookingDocumentsUseCase;
+  deleteBookingUseCase: DeleteBookingUseCase;
+  deleteCustomerUseCase: DeleteCustomerUseCase;
 }
 
 let cachedContainer: Container | null = null;
@@ -241,10 +251,34 @@ export const getContainer = (): Container => {
     paymentRepository,
     customerRepository,
     vehicleRepository,
+    optionRepository,
     paymentGateway,
     notifier,
     adminEmail,
     generateInvoice: (bookingId) => generateInvoiceUseCase.execute(bookingId),
+    sendAdminSms: async (params) => {
+      const agency = await agencyRepository.findById(params.agencyId);
+      if (!agency?.smsEnabled || !agency.smsAdminPhone) return;
+      const { sendSms } = await import("@/infrastructure/brevo/send-sms");
+      const lines = [
+        `Nouvelle resa payee`,
+        `${params.customerName}`,
+        `${params.customerEmail}`,
+        `Tel: ${params.customerPhone}`,
+        `${params.vehicleName}`,
+        `${params.startDate} ${params.startTime} - ${params.endDate} ${params.endTime}`,
+        `Total: ${Math.round(params.totalPrice)} EUR`,
+      ];
+      if (params.options && params.options.length > 0) {
+        lines.push(
+          `Options: ${params.options.map((o) => `${o.name}${o.quantity > 1 ? ` x${o.quantity}` : ""}`).join(", ")}`
+        );
+      }
+      await sendSms({
+        to: agency.smsAdminPhone,
+        content: lines.join("\n"),
+      });
+    },
   });
   const handlePaymentFailedUseCase = createHandlePaymentFailedUseCase({
     bookingRepository,
@@ -261,10 +295,6 @@ export const getContainer = (): Container => {
     // The Stripe adapter implements both PaymentGateway and
     // CheckoutSessionMetadataReader.
     metadataReader: paymentGateway,
-  });
-
-  const getDashboardSummaryUseCase = createGetDashboardSummaryUseCase({
-    bookingRepository,
   });
 
   const getPlanningDataUseCase = createGetPlanningDataUseCase({
@@ -293,6 +323,15 @@ export const getContainer = (): Container => {
     pdfRenderer: createReactPdfQuoteRenderer(),
   });
 
+  // Use case partagé entre `deleteBookingUseCase` (consommé directement
+  // depuis le tableau résa) et `deleteCustomerUseCase` (qui l'appelle en
+  // boucle pour chaque résa du client).
+  const deleteBookingUseCase = createDeleteBookingUseCase({
+    bookingRepository,
+    documentRepository,
+    inspectionRepository,
+  });
+
   cachedContainer = {
     vehicleRepository,
     agencyRepository,
@@ -313,7 +352,6 @@ export const getContainer = (): Container => {
     handlePaymentFailedUseCase,
     recordRefundedChargeUseCase,
     verifyCheckoutSessionUseCase,
-    getDashboardSummaryUseCase,
     getPlanningDataUseCase,
     getStatisticsUseCase: createGetStatisticsUseCase({
       bookingRepository,
@@ -350,6 +388,22 @@ export const getContainer = (): Container => {
       agencyRepository,
       documentRepository,
       pdfRenderer: createReactPdfInspectionRenderer(),
+    }),
+    sendBookingDocumentsUseCase: createSendBookingDocumentsUseCase({
+      bookingRepository,
+      customerRepository,
+      vehicleRepository,
+      documentRepository,
+      notifier,
+    }),
+    deleteBookingUseCase,
+    deleteCustomerUseCase: createDeleteCustomerUseCase({
+      customerRepository,
+      bookingRepository,
+      quoteRepository,
+      customerDocumentRepository,
+      documentRepository,
+      deleteBookingUseCase,
     }),
   };
   return cachedContainer;

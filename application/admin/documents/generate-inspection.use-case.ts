@@ -38,6 +38,13 @@ export interface InspectionPdfData {
     lastName: string;
     email: string;
     phone: string;
+    address: string;
+    postalCode: string;
+    city: string;
+    country: string;
+    companyName?: string | null;
+    siret?: string | null;
+    vatNumber?: string | null;
   };
   vehicle: {
     brand: string;
@@ -160,6 +167,13 @@ export const createGenerateInspectionUseCase = (deps: Deps) => {
         lastName: customer.lastName,
         email: customer.email,
         phone: customer.phone,
+        address: customer.address,
+        postalCode: customer.postalCode,
+        city: customer.city,
+        country: getCountryName(customer.country) ?? customer.country,
+        companyName: customer.companyName,
+        siret: customer.siret,
+        vatNumber: customer.vatNumber,
       },
       vehicle: {
         brand: vehicle.brand,

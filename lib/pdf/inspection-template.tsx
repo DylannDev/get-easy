@@ -30,6 +30,13 @@ export interface InspectionPdfData {
     lastName: string;
     email: string;
     phone: string;
+    address: string;
+    postalCode: string;
+    city: string;
+    country: string;
+    companyName?: string | null;
+    siret?: string | null;
+    vatNumber?: string | null;
   };
   vehicle: {
     brand: string;
@@ -54,35 +61,21 @@ const styles = StyleSheet.create({
     fontFamily: "Helvetica",
     color: "#111",
   },
+  // Header : logo (gauche) + titre (droite, aligné verticalement avec le logo)
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 20,
+    alignItems: "center",
+    marginBottom: 24,
   },
-  headerLeft: { flex: 1, paddingRight: 16 },
-  headerRight: { flex: 1, alignItems: "flex-end" },
   logo: {
     width: 120,
     height: 40,
     objectFit: "contain",
-    marginBottom: 8,
-  },
-  agencyName: {
-    fontSize: 13,
-    fontFamily: "Helvetica-Bold",
-    marginBottom: 4,
   },
   title: {
     fontSize: 16,
     fontFamily: "Helvetica-Bold",
-    marginBottom: 6,
-    textAlign: "right",
-  },
-  metaBlock: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    padding: 10,
-    minWidth: 220,
   },
   metaLine: {
     flexDirection: "row",
@@ -90,7 +83,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   metaLabel: { color: "#555" },
-  section: { marginBottom: 16 },
+  section: { marginBottom: 18 },
   sectionTitle: {
     fontFamily: "Helvetica-Bold",
     fontSize: 11,
@@ -98,11 +91,25 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     color: "#444",
   },
-  customerBlock: {
+  partyName: {
+    fontFamily: "Helvetica-Bold",
+    marginBottom: 2,
+  },
+  partyBlock: {
     borderWidth: 1,
     borderColor: "#eee",
     padding: 10,
     backgroundColor: "#fafafa",
+    borderRadius: 8,
+    flexDirection: "column",
+  },
+  detailsBlock: {
+    borderWidth: 1,
+    borderColor: "#eee",
+    padding: 10,
+    backgroundColor: "#fafafa",
+    borderRadius: 8,
+    flexDirection: "column",
   },
   // Photos — grille 2 colonnes
   photoGrid: {
@@ -133,6 +140,7 @@ const styles = StyleSheet.create({
     borderColor: "#eee",
     padding: 10,
     backgroundColor: "#fafafa",
+    borderRadius: 8,
     minHeight: 40,
   },
   signatureBlock: {
@@ -145,7 +153,7 @@ const styles = StyleSheet.create({
     objectFit: "contain",
     borderWidth: 1,
     borderColor: "#ddd",
-    borderRadius: 4,
+    borderRadius: 8,
     padding: 4,
     backgroundColor: "#fff",
   },
@@ -171,6 +179,20 @@ function formatDate(d: Date): string {
   });
 }
 
+/** Ex. "29/03/2026 à 7h00" — utilisé pour les dates de période avec horaire. */
+function formatDateTime(d: Date): string {
+  const date = formatDate(d);
+  const hours = d.getHours();
+  const minutes = String(d.getMinutes()).padStart(2, "0");
+  return `${date} à ${hours}h${minutes}`;
+}
+
+/** Format avec espaces simples (le NBSP `toLocaleString` peut s'afficher
+ *  comme un slash dans certaines polices PDF). */
+function formatNumberFr(n: number): string {
+  return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+}
+
 const FUEL_LABELS: Record<string, string> = {
   empty: "Vide",
   "1/4": "1/4",
@@ -189,15 +211,27 @@ export function InspectionPDFDocument({
 }: {
   data: InspectionPdfData;
 }) {
+  // Ordre demandé : nom, adresse, téléphone, email
+  // (le nom est affiché à part en haut du bloc, donc on commence à l'adresse)
   const agencyLines: string[] = [];
   if (data.agency.address) agencyLines.push(data.agency.address);
-  const cityLine = [data.agency.postalCode, data.agency.city]
+  const agencyCityLine = [data.agency.postalCode, data.agency.city]
     .filter(Boolean)
     .join(" ");
-  if (cityLine) agencyLines.push(cityLine);
+  if (agencyCityLine) agencyLines.push(agencyCityLine);
   if (data.agency.country) agencyLines.push(data.agency.country);
-  if (data.agency.phone) agencyLines.push(`Tél. ${data.agency.phone}`);
+  if (data.agency.phone) agencyLines.push(data.agency.phone);
   if (data.agency.email) agencyLines.push(data.agency.email);
+
+  const customerLines: string[] = [];
+  if (data.customer.address) customerLines.push(data.customer.address);
+  const customerCityLine = [data.customer.postalCode, data.customer.city]
+    .filter(Boolean)
+    .join(" ");
+  if (customerCityLine) customerLines.push(customerCityLine);
+  if (data.customer.country) customerLines.push(data.customer.country);
+  if (data.customer.phone) customerLines.push(data.customer.phone);
+  if (data.customer.email) customerLines.push(data.customer.email);
 
   const legalLines: string[] = [];
   if (data.agency.legalForm) legalLines.push(data.agency.legalForm);
@@ -214,67 +248,100 @@ export function InspectionPDFDocument({
   return (
     <PDFDocument>
       <Page size="A4" style={styles.page}>
-        {/* Header */}
+        {/* Header — logo + titre alignés sur la même ligne */}
         <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            {data.agency.logoUrl && (
-              /* eslint-disable-next-line jsx-a11y/alt-text */
-              <Image src={data.agency.logoUrl} style={styles.logo} />
-            )}
-            <Text style={styles.agencyName}>{data.agency.name}</Text>
-            {agencyLines.map((line, i) => (
-              <Text key={i}>{line}</Text>
-            ))}
+          {data.agency.logoUrl ? (
+            /* eslint-disable-next-line jsx-a11y/alt-text */
+            <Image src={data.agency.logoUrl} style={styles.logo} />
+          ) : (
+            <View style={styles.logo} />
+          )}
+          <Text style={styles.title}>
+            État des lieux — {TYPE_LABELS[data.type]}
+          </Text>
+        </View>
+
+        {/* Loueur + Client — labels au-dessus, blocs côte-à-côte */}
+        <View style={{ ...styles.section, flexDirection: "row", gap: 12 }}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.sectionTitle}>Loueur</Text>
+            <View style={styles.partyBlock}>
+              <Text style={styles.partyName}>{data.agency.name}</Text>
+              {agencyLines.map((line, i) => (
+                <Text key={i}>{line}</Text>
+              ))}
+            </View>
           </View>
-          <View style={styles.headerRight}>
-            <Text style={styles.title}>
-              État des lieux — {TYPE_LABELS[data.type]}
-            </Text>
-            <View style={styles.metaBlock}>
-              <View style={styles.metaLine}>
-                <Text style={styles.metaLabel}>Date</Text>
-                <Text>{formatDate(data.issuedAt)}</Text>
-              </View>
-              <View style={styles.metaLine}>
-                <Text style={styles.metaLabel}>Période</Text>
-                <Text>
-                  {formatDate(data.startDate)} → {formatDate(data.endDate)}
-                </Text>
-              </View>
-              {data.mileage != null && (
-                <View style={styles.metaLine}>
-                  <Text style={styles.metaLabel}>Kilométrage</Text>
-                  <Text>{data.mileage.toLocaleString("fr-FR")} km</Text>
-                </View>
-              )}
-              {data.fuelLevel && (
-                <View style={styles.metaLine}>
-                  <Text style={styles.metaLabel}>Carburant</Text>
-                  <Text>{FUEL_LABELS[data.fuelLevel] ?? data.fuelLevel}</Text>
-                </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.sectionTitle}>Client</Text>
+            <View style={styles.partyBlock}>
+              {data.customer.companyName ? (
+                <>
+                  <Text style={styles.partyName}>
+                    {data.customer.companyName}
+                  </Text>
+                  {data.customer.siret && (
+                    <Text>SIRET {data.customer.siret}</Text>
+                  )}
+                  {data.customer.vatNumber && (
+                    <Text>TVA {data.customer.vatNumber}</Text>
+                  )}
+                  {customerLines.map((line, i) => (
+                    <Text key={i}>{line}</Text>
+                  ))}
+                  <Text style={{ marginTop: 4, color: "#555" }}>
+                    Conducteur : {data.customer.firstName}{" "}
+                    {data.customer.lastName}
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.partyName}>
+                    {data.customer.firstName} {data.customer.lastName}
+                  </Text>
+                  {customerLines.map((line, i) => (
+                    <Text key={i}>{line}</Text>
+                  ))}
+                </>
               )}
             </View>
           </View>
         </View>
 
-        {/* Client + Véhicule */}
-        <View style={{ ...styles.section, flexDirection: "row", gap: 12 }}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.sectionTitle}>Client</Text>
-            <View style={styles.customerBlock}>
-              <Text style={{ fontFamily: "Helvetica-Bold", marginBottom: 2 }}>
-                {data.customer.firstName} {data.customer.lastName}
-              </Text>
-              <Text>{data.customer.email}</Text>
-              <Text>{data.customer.phone}</Text>
+        {/* Infos location encadrées (Date, Période, Kilométrage, Carburant, Véhicule, Plaque) */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Détail de la location</Text>
+          <View style={styles.detailsBlock}>
+            <View style={styles.metaLine}>
+              <Text style={styles.metaLabel}>Date</Text>
+              <Text>{formatDate(data.issuedAt)}</Text>
             </View>
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.sectionTitle}>Véhicule</Text>
-            <View style={styles.customerBlock}>
-              <Text style={{ fontFamily: "Helvetica-Bold", marginBottom: 2 }}>
+            <View style={styles.metaLine}>
+              <Text style={styles.metaLabel}>Période</Text>
+              <Text>
+                {formatDateTime(data.startDate)} - {formatDateTime(data.endDate)}
+              </Text>
+            </View>
+            {data.mileage != null && (
+              <View style={styles.metaLine}>
+                <Text style={styles.metaLabel}>Kilométrage</Text>
+                <Text>{formatNumberFr(data.mileage)} km</Text>
+              </View>
+            )}
+            {data.fuelLevel && (
+              <View style={styles.metaLine}>
+                <Text style={styles.metaLabel}>Carburant</Text>
+                <Text>{FUEL_LABELS[data.fuelLevel] ?? data.fuelLevel}</Text>
+              </View>
+            )}
+            <View style={styles.metaLine}>
+              <Text style={styles.metaLabel}>Véhicule</Text>
+              <Text>
                 {data.vehicle.brand} {data.vehicle.model}
               </Text>
+            </View>
+            <View style={{ ...styles.metaLine, marginBottom: 0 }}>
+              <Text style={styles.metaLabel}>Immatriculation</Text>
               <Text>{data.vehicle.registrationPlate}</Text>
             </View>
           </View>
@@ -290,9 +357,9 @@ export function InspectionPDFDocument({
           </View>
         )}
 
-        {/* Photos */}
+        {/* Photos — flow naturel sans wrap={false} pour éviter les vides */}
         {data.photos.length > 0 && (
-          <View style={styles.section} wrap={false}>
+          <View style={styles.section}>
             <Text style={styles.sectionTitle}>
               Photos ({data.photos.length})
             </Text>

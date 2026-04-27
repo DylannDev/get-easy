@@ -133,26 +133,15 @@ export const createSupabaseCustomerDocumentRepository =
         const supabase = createAdminClient();
         const stagingPath = `staging/${input.stagingKey}`;
         const ext = extFromMime(input.mimeType);
-        const finalPath = `${input.organizationId}/${input.customerId}/${input.type}-${Date.now()}.${ext}`;
+        // Suffixe aléatoire en plus du timestamp pour permettre plusieurs
+        // fichiers du même `(customer,type)` dans la même milliseconde
+        // (ex. import recto + verso en parallèle).
+        const rand = Math.random().toString(36).slice(2, 8);
+        const finalPath = `${input.organizationId}/${input.customerId}/${input.type}-${Date.now()}-${rand}.${ext}`;
 
-        // Supprime l'éventuel ancien fichier/row pour le même (customer,type).
-        const { data: existing } = await supabase
-          .from("customer_documents")
-          .select("id, file_path")
-          .eq("customer_id", input.customerId)
-          .eq("type", input.type)
-          .maybeSingle();
-        if (existing?.file_path) {
-          await supabase.storage
-            .from(BUCKET)
-            .remove([existing.file_path as string]);
-        }
-        if (existing?.id) {
-          await supabase
-            .from("customer_documents")
-            .delete()
-            .eq("id", existing.id);
-        }
+        // Multi-fichiers par type autorisé (recto + verso, etc.) → on n'écrase
+        // plus l'éventuel doc existant. La suppression manuelle se fait via
+        // l'UI (bouton corbeille par doc).
 
         // Déplace le fichier staging vers son emplacement final.
         const { error: moveError } = await supabase.storage

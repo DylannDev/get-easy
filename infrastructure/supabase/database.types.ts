@@ -51,6 +51,10 @@ export interface Database {
           country: string | null;
           default_loueur_signature: string | null;
           quote_validity_days: number;
+          rib: string | null;
+          show_rib_on_quote: boolean;
+          sms_enabled: boolean;
+          sms_admin_phone: string | null;
           created_at: string;
         };
         Insert: {
@@ -77,6 +81,10 @@ export interface Database {
           country?: string | null;
           default_loueur_signature?: string | null;
           quote_validity_days?: number;
+          rib?: string | null;
+          show_rib_on_quote?: boolean;
+          sms_enabled?: boolean;
+          sms_admin_phone?: string | null;
           created_at?: string;
         };
         Update: {
@@ -103,6 +111,10 @@ export interface Database {
           country?: string | null;
           default_loueur_signature?: string | null;
           quote_validity_days?: number;
+          rib?: string | null;
+          show_rib_on_quote?: boolean;
+          sms_enabled?: boolean;
+          sms_admin_phone?: string | null;
           created_at?: string;
         };
       };
@@ -228,6 +240,9 @@ export interface Database {
           driver_license_number: string | null;
           driver_license_issued_at: string | null;
           driver_license_country: string | null;
+          company_name: string | null;
+          siret: string | null;
+          vat_number: string | null;
           created_at: string;
           user_id: string | null;
         };
@@ -247,6 +262,9 @@ export interface Database {
           driver_license_number?: string | null;
           driver_license_issued_at?: string | null;
           driver_license_country?: string | null;
+          company_name?: string | null;
+          siret?: string | null;
+          vat_number?: string | null;
           created_at?: string;
           user_id?: string | null;
         };
@@ -266,6 +284,9 @@ export interface Database {
           driver_license_number?: string | null;
           driver_license_issued_at?: string | null;
           driver_license_country?: string | null;
+          company_name?: string | null;
+          siret?: string | null;
+          vat_number?: string | null;
           created_at?: string;
           user_id?: string | null;
         };

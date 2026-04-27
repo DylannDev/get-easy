@@ -138,7 +138,7 @@ export const createSupabaseBookingRepository = (): BookingRepository => {
   // ── Admin queries ─────────────────────────────────────────────
 
   const BOOKING_WITH_DETAILS_SELECT =
-    "*, customers(first_name, last_name, email, phone), vehicles(brand, model, color)";
+    "*, customers(first_name, last_name, email, phone), vehicles(brand, model, color, registration_plate)";
 
   const findAllWithDetails = async (params: {
     page: number;
@@ -274,6 +274,31 @@ export const createSupabaseBookingRepository = (): BookingRepository => {
     return data.map(toDomainBookingWithDetails);
   };
 
+  const deleteBooking: BookingRepository["delete"] = async (bookingId) => {
+    const supabase = createAdminClient();
+    const { error } = await supabase
+      .from("bookings")
+      .delete()
+      .eq("id", bookingId);
+    if (error) {
+      throw new Error(
+        `Impossible de supprimer la réservation : ${error.message}`
+      );
+    }
+  };
+
+  const findAllByCustomerId: BookingRepository["findAllByCustomerId"] = async (
+    customerId
+  ) => {
+    const supabase = createAdminClient();
+    const { data, error } = await supabase
+      .from("bookings")
+      .select("*")
+      .eq("customer_id", customerId);
+    if (error || !data) return [];
+    return data.map(toDomainBooking);
+  };
+
   return {
     findById,
     findActiveAvailabilityViewsByVehicleId,
@@ -286,5 +311,7 @@ export const createSupabaseBookingRepository = (): BookingRepository => {
     countActiveRentals,
     findDeparturesByDate,
     findReturnsByDate,
+    delete: deleteBooking,
+    findAllByCustomerId,
   };
 };

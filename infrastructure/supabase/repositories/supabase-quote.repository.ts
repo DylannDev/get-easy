@@ -96,10 +96,33 @@ export const createSupabaseQuoteRepository = (): QuoteRepository => {
     return toDomainQuoteOption(data);
   };
 
+  const listByCustomerId: QuoteRepository["listByCustomerId"] = async (
+    customerId
+  ) => {
+    const supabase = createAdminClient();
+    const { data, error } = await supabase
+      .from("quotes")
+      .select("*")
+      .eq("customer_id", customerId)
+      .order("created_at", { ascending: false });
+    if (error || !data) return [];
+    return data.map(toDomainQuote);
+  };
+
+  const deleteQuote: QuoteRepository["delete"] = async (quoteId) => {
+    const supabase = createAdminClient();
+    const { error } = await supabase.from("quotes").delete().eq("id", quoteId);
+    if (error) {
+      throw new Error(`Impossible de supprimer le devis : ${error.message}`);
+    }
+  };
+
   return {
     findById,
     listByAgency,
+    listByCustomerId,
     create,
+    delete: deleteQuote,
     listOptionsForQuote,
     attachOption,
   };

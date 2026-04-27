@@ -25,8 +25,8 @@ export interface CompressedImage {
 }
 
 const DEFAULT_OPTS: Required<CompressImageOptions> = {
-  maxWidth: 1600,
-  maxHeight: 1600,
+  maxWidth: 1000,
+  maxHeight: 1000,
   quality: 85,
   format: "auto",
 };

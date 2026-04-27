@@ -37,5 +37,6 @@ export function toDomainBookingWithDetails(row: any): BookingWithDetails {
     vehicleBrand: row.vehicles?.brand ?? "",
     vehicleModel: row.vehicles?.model ?? "",
     vehicleColor: row.vehicles?.color ?? "",
+    vehicleRegistrationPlate: row.vehicles?.registration_plate ?? "",
   };
 }
